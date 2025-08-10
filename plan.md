@@ -1,0 +1,116 @@
+# Plan for npm Utility Connector
+
+## Notes
+- User wants to create an npm utility from scratch.
+- No dependencies should be used.
+- The utility should be innovative and act as a connector.
+- The end goal is to publish it on npm.
+- User chose package name: "uniconnect".
+- Target platform: Node.js 18+.
+- First connector to implement: Event ↔ AsyncIterable (unifies EventEmitter, EventTarget, AsyncIterable with operators).
+- Architecture and API designed and implemented (see src/index.js)
+- Documentation, license, and tests written (see README.md, LICENSE, test/smoke.mjs)
+- Package.json and npm metadata prepared
+- README will be in English
+- Author: Gzeu
+- Repository: https://github.com/Gzeu/uniconnect.git
+- Use a professional README template
+- Further optimize code and documentation per user request
+- Feature-complete: zero dependencies, expanded operator set, all tests pass
+- User requested to add security and persistence/resilience tests
+- User requested to improve connector code for security/resilience if npm allows
+- Security/resilience features and input validation implemented
+- Professional-grade TypeScript types and documentation added
+- Full CI and test coverage in progress (target: 1000 tests)
+- Tests must explicitly close async iterators or abort with AbortController to avoid lingering promises and ensure clean shutdown (test stabilization)
+- User now requests 1000 tests, each with a timeout to avoid hangs
+- Multi-connection support is required and implemented; tested with merge, overflow, rapid open/close, and backpressure scenarios.
+- Dedicated multi-connection test file (test/multi-connections.test.mjs) added and stabilized; tests include cleanup, AbortController, and listener checks.
+- Test stabilization and tuning for timeouts, event count, and resource cleanup is ongoing.
+- User clarified: tests are not important, focus should be on improving the connector code in src/index.js; it is acceptable for the package to only contain index.js if needed.
+- User requested continued development based on instructions in src/instructiuni.md.
+- Minimalist packaging is acceptable: just src/index.js, with optional index.d.ts and focused README.
+- User requested to clean up/remove unnecessary tests and test infrastructure before further development.
+- Error handling improvements started: specific error types, better error messages, and code review-driven refactor in progress
+- Memory management improved: enhanced event listener cleanup and queue management to prevent leaks
+- Performance optimizations: debounceTime and throttleTime refactored for efficiency and minimal memory use
+- merge and zip operators reimplemented with improved backpressure, error handling, and resource management
+- Optional improvements from instructiuni.md: add JSDoc and/or index.d.ts, extend input validation (queueLimit, onOverflow), ensure all main combinators accept { signal }, and allow minimalist packaging (remove tests/, simplify package.json, focused README).
+- withQueue utility implemented and integrated in index.js
+- JSDoc comments added to main entry points
+- README updated with all recent improvements and API changes
+- User explicitly allows further expert-level improvements as long as zero dependencies are kept
+- Core connector code (createAsyncQueue, fromEventTarget, fromEventEmitter) optimized for performance and memory management with expert-level improvements and weak reference-based handler caches
+- withQueue.js finalized and optimized for memory, performance, and error handling
+- README documentation for withQueue utility added and finalized
+- TypeScript definitions and main exports finalized and synchronized with implementation
+- Package version bumped to 0.2.0 for release
+- User requests 1000+ concurrent performance, security, and code tests for final validation
+- Comprehensive suite of 1000+ performance, security, and concurrency tests created and integrated for validation
+- Error classes moved to src/errors.js to resolve circular dependency between index.js and withQueue.js
+- Explore new innovative connector patterns and utilities with zero dependencies (e.g., cross-process connectors, browser-to-node bridges, streaming adapters, plug-in operator support, dynamic runtime operator injection, connectors for WebSockets/MessagePorts/SharedArrayBuffer, advanced resource cleanup strategies, and built-in diagnostics/metrics APIs)
+- Worker utilities (fromWorker, toWorker, createWorker) implemented for robust cross-thread async integration with zero dependencies
+- Worker utilities refactored into a dedicated module with a local queue implementation to avoid circular dependencies and duplicate exports
+- Comprehensive worker tests and a new, minimal test runner added for validation
+- Test utilities expanded for robust, clear test reporting
+- Refocus: Worker utilities are an optional, well-documented extension; the main goal remains a cohesive, zero-dependency connector core (Event/AsyncIterable unification) with minimal, robust worker integration.
+- Worker utilities now support both browser and Node.js environments (mock worker for Node.js); all worker utility tests pass in Node.js.
+- User requested a clean, modular project structure as outlined (operators/, sources/, utils/, tests/ by type, etc.) and removal of unused or obsolete files/code for the final package.
+- Directory restructuring and modularization process started (creating operators/, sources/, utils/, test/unit, etc.); next: move code and remove obsolete files/code.
+- Operator and source modularization in progress: map.js, filter.js, merge.js, zip.js, scan.js, distinctUntilChanged.js created in src/operators/; fromEvent.js, fromIterable.js created in src/sources/.
+- Next: begin testing the modularized code and operators in their new locations.
+
+## Task List
+- [x] Define the purpose and features of the connector utility
+- [x] Design the architecture and API (no dependencies)
+- [x] Implement the core functionality
+- [x] Write documentation and usage examples
+- [x] Prepare package.json and npm metadata
+- [x] Test the utility thoroughly
+- [x] Optimize test script and versioning
+- [x] Finalize author and repository fields in package.json
+- [x] Use a professional README template
+- [x] Optimize code for clarity and performance
+- [x] Expand operator set and ensure zero dependencies
+- [x] All tests passing after final optimization
+- [x] Publish to npm and GitHub
+- [x] Add security and persistence/resilience tests
+- [x] Improve connector code for security/resilience (if npm allows)
+- [x] Add up to 1000 comprehensive tests for security, resilience, edge cases, each with timeout handling
+- [x] Add dedicated multi-connection and concurrency tests, including cleanup and overflow handling
+- [x] Clean up/remove unnecessary tests and test infrastructure
+- [x] Stabilize and pass all tests (multi-connection, overflow, timeouts, cleanup)
+- [x] Review and finalize core implementation in src/index.js
+- [x] Improve connector implementation in src/index.js for robustness, cleanup, and API clarity
+- [x] Continue development per src/instructiuni.md instructions
+- [x] Optionally remove tests/, simplify package.json, and add index.d.ts and/or JSDoc as needed
+- [x] Add JSDoc comments and/or index.d.ts for TypeScript support
+- [x] Extend input validation for options (queueLimit, onOverflow)
+- [x] Ensure all main combinators (merge, zip, timeout, etc.) accept { signal }
+- [x] Add withQueue utility for backpressure policies
+- [x] Implement error handling improvements (specific error types, better error messages)
+- [x] Enhance memory management (event listener cleanup, queue management)
+- [x] Optimize debounceTime and throttleTime for performance/memory
+- [x] Reimplement merge and zip with improved backpressure and resource management
+- [x] Update README with latest improvements and API
+- [x] Update TypeScript definitions and main exports for withQueue and QUEUE_POLICIES
+- [x] Finalize and clean project for release
+- [x] Publish and synchronize with Git and npm
+- [x] Add and run 1000+ concurrent performance, security, and code tests
+- [x] Release v0.2.0 and publish to Git and npm
+- [x] Refactor worker utilities into a dedicated module with local queue implementation
+- [x] Create minimal, dedicated test runner and test file for worker utilities
+- [x] Expand test utilities for robust, clear test reporting
+- [x] Fix Node.js/Worker compatibility or document environment requirements for worker utilities
+- [ ] Research and prototype new connector patterns and zero-dependency utilities
+- [ ] Ensure worker integration is minimal, optional, and well-documented as an extension
+- [ ] Restructure project to match final modular layout and remove unused code/files
+  - [ ] Move core operators to src/operators/
+  - [ ] Move source creators to src/sources/
+  - [ ] Move internal utilities to src/utils/
+  - [ ] Organize tests by type (unit, integration, performance)
+  - [ ] Remove unused, obsolete, or redundant files/code
+  - [ ] Begin testing modularized code (operators, sources, etc.)
+
+## Current Goal
+Refactor project structure and clean up unused code/files

@@ -1,11 +1,5 @@
 import { QueueOverflowError, AbortError, ValidationError } from './index.js';
-
-// Constants for queue overflow policies
-const QUEUE_POLICIES = Object.freeze({
-  DROP_OLD: 'drop-old',
-  DROP_NEW: 'drop-new',
-  THROW: 'throw'
-});
+import { QUEUE_POLICIES, ERROR_MESSAGES } from './constants.js';
 
 // Re-export the queue policies
 export { QUEUE_POLICIES };

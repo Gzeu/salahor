@@ -1,7 +1,7 @@
-// Type definitions for uniconnect
-// Zero-dependency ESM. Node 18+
-// Repository: https://github.com/Gzeu/uniconnect
-// NPM: https://www.npmjs.com/package/uniconnect
+// Type definitions for salahor
+// Project: salahor
+// Repository: https://github.com/Gzeu/salahor
+// NPM: https://www.npmjs.com/package/salahor
 
 import { EventEmitter } from 'node:events';
 

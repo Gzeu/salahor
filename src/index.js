@@ -1,13 +1,11 @@
 // uniconnect - zero-dependency connectors and operators
 // Node 18+, ESM
 
-import { withQueue, QUEUE_POLICIES } from './withQueue.js';
+import { withQueue } from './withQueue.js';
+import { QUEUE_POLICIES, ERROR_MESSAGES } from './constants.js';
 
-/**
- * Base error class for uniconnect errors
- * @extends Error
- */
-class UniconnectError extends Error {
+// Export error classes for use in other modules
+export class UniconnectError extends Error {
   constructor(message, code = 'UNICONNECT_ERROR') {
     super(message);
     this.name = this.constructor.name;
@@ -16,45 +14,31 @@ class UniconnectError extends Error {
   }
 }
 
-/**
- * Error thrown when an operation is aborted
- * @extends UniconnectError
- */
-class AbortError extends UniconnectError {
+export class AbortError extends UniconnectError {
   constructor(message = 'Operation was aborted') {
     super(message, 'ABORT_ERR');
   }
 }
 
-/**
- * Error thrown when a queue overflows
- * @extends UniconnectError
- */
-class QueueOverflowError extends UniconnectError {
+export class QueueOverflowError extends UniconnectError {
   constructor(message = 'Queue overflow') {
     super(message, 'QUEUE_OVERFLOW');
   }
 }
 
-/**
- * Error thrown for invalid arguments
- * @extends UniconnectError
- */
-class ValidationError extends UniconnectError {
+export class ValidationError extends UniconnectError {
   constructor(message = 'Invalid argument') {
     super(message, 'VALIDATION_ERROR');
   }
 }
 
-/**
- * Error thrown for unsupported operations
- * @extends UniconnectError
- */
-class NotSupportedError extends UniconnectError {
+export class NotSupportedError extends UniconnectError {
   constructor(message = 'Operation not supported') {
     super(message, 'NOT_SUPPORTED');
   }
 }
+
+// Error classes are now defined at the top of the file with export statements
 
 
 
@@ -89,21 +73,7 @@ function isEventEmitter(obj) {
  * @throws {TypeError} If queueLimit is not a non-negative number
  * @throws {TypeError} If onOverflow is not one of 'drop-old', 'drop-new', or 'throw'
  */
-// Cache for common values to reduce property lookups
-const QUEUE_POLICIES = Object.freeze({
-  DROP_OLD: 'drop-old',
-  DROP_NEW: 'drop-new',
-  THROW: 'throw'
-});
-
-// Pre-define error messages for better minification and performance
-const ERROR_MESSAGES = Object.freeze({
-  INVALID_QUEUE_LIMIT: 'queueLimit must be a non-negative integer',
-  INVALID_OVERFLOW_POLICY: (policy, validPolicies) => 
-    `Invalid overflow policy '${policy}'. Must be one of: ${validPolicies.join(', ')}`,
-  QUEUE_OVERFLOW: 'Queue overflow',
-  OPERATION_ABORTED: 'Operation was aborted'
-});
+// Error messages are now imported from constants.js
 
 // Reusable empty array for default values
 const EMPTY_ARRAY = Object.freeze([]);
@@ -742,49 +712,50 @@ export function debounceTime(ms) {
     };
 
     // Process pending value if any
-    const processPending = async () => {
-      if (pending === undefined) return;
+    const processPending = () => {
+      if (pending === undefined) return Promise.resolve();
       
       const valueToEmit = pending;
       pending = undefined;
       
-      // Wait for the debounce period
-      const shouldEmit = await new Promise((resolve) => {
+      // Return a promise that resolves when the debounce period is complete
+      return new Promise((resolve) => {
         cleanup(); // Clear any pending timers
         timer = setTimeout(() => {
           timer = null;
-          resolve(true);
+          resolve({ shouldEmit: true, value: valueToEmit });
         }, ms);
         
         // Store resolve for potential cancellation
-        resolveFlush = resolve;
+        resolveFlush = (result) => resolve({ shouldEmit: result, value: valueToEmit });
       });
-      
-      // If we should emit and we're not done, yield the value
-      if (shouldEmit && !isDone) {
-        yield valueToEmit;
-        
-        // If source is done and we've emitted the last value, we're done
-        if (sourceDone) {
-          isDone = true;
-        }
-      }
     };
 
-    try {
-      // Process the source iterable
+    // Process the source iterable
+    const processSource = async function* () {
       for await (const value of iterable) {
         if (isDone) break;
         
         pending = value;
-        await processPending();
+        const result = await processPending();
+        
+        if (result.shouldEmit && !isDone) {
+          yield result.value;
+        }
       }
       
       // Source is done, process any remaining pending value
       sourceDone = true;
       if (pending !== undefined) {
-        await processPending();
+        const result = await processPending();
+        if (result.shouldEmit && !isDone) {
+          yield result.value;
+        }
       }
+    };
+
+    try {
+      yield* processSource();
     } finally {
       // Cleanup on early return/cancel
       cleanup();
@@ -1073,11 +1044,15 @@ export async function* zip(...iterables) {
   }
 }
 
-export default {
+// Export all named exports in a single statement
+export {
+  // Core functions
   fromEventTarget,
   fromEventEmitter,
   toEventEmitter,
   toAsyncIterable,
+  
+  // Operators
   map,
   filter,
   take,
@@ -1092,5 +1067,44 @@ export default {
   merge,
   zip,
   withQueue,
+  
+  // Constants
   QUEUE_POLICIES
 };
+
+// Default export for backward compatibility
+const mainExports = {
+  // Core functions
+  fromEventTarget,
+  fromEventEmitter,
+  toEventEmitter,
+  toAsyncIterable,
+  
+  // Operators
+  map,
+  filter,
+  take,
+  buffer,
+  pipe,
+  retryIterable,
+  scan,
+  distinctUntilChanged,
+  debounceTime,
+  throttleTime,
+  timeout,
+  merge,
+  zip,
+  withQueue,
+  
+  // Constants
+  QUEUE_POLICIES,
+  
+  // Error classes
+  UniconnectError,
+  AbortError,
+  QueueOverflowError,
+  ValidationError,
+  NotSupportedError
+};
+
+export default mainExports;
