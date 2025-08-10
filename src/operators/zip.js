@@ -3,7 +3,7 @@
  * @param {...AsyncIterable} sources - The async iterables to zip together
  * @returns {AsyncIterable} A new async iterable that yields arrays of values from each source
  */
-export function zip(...sources) {
+function zip(...sources) {
   return {
     async *[Symbol.asyncIterator]() {
       // Convert each source to an async iterator
@@ -39,3 +39,6 @@ export function zip(...sources) {
     }
   };
 }
+
+export { zip };
+export default zip;

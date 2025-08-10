@@ -3,7 +3,7 @@
  * @param {Function} predicate - The filter function
  * @returns {Operator} A function that takes an async iterable and returns a new async iterable
  */
-export function filter(predicate) {
+function filter(predicate) {
   return async function* (source) {
     let index = 0;
     for await (const value of source) {
@@ -13,3 +13,6 @@ export function filter(predicate) {
     }
   };
 }
+
+export { filter };
+export default filter;

@@ -3,7 +3,12 @@
  * @param {Function} [equals] - Optional comparison function (a, b) => boolean
  * @returns {Operator} A function that takes an async iterable and returns a new async iterable
  */
-export function distinctUntilChanged(equals = (a, b) => a === b) {
+/**
+ * Distinct until changed operator - only emits values that are different from the previous value
+ * @param {Function} [equals] - Optional comparison function (a, b) => boolean
+ * @returns {Operator} A function that takes an async iterable and returns a new async iterable
+ */
+function distinctUntilChanged(equals = (a, b) => a === b) {
   return async function* (source) {
     let first = true;
     let previous;
@@ -17,3 +22,6 @@ export function distinctUntilChanged(equals = (a, b) => a === b) {
     }
   };
 }
+
+export { distinctUntilChanged };
+export default distinctUntilChanged;

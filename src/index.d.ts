@@ -4,6 +4,7 @@
 // NPM: https://www.npmjs.com/package/salahor
 
 import { EventEmitter } from 'node:events';
+import type { WebSocketClient, WebSocketServer, HybridServer } from './connectors/websocket';
 
 /** Queue overflow policy for event buffering. */
 export const QUEUE_POLICIES: {
@@ -93,6 +94,11 @@ export function withQueue<T>(options?: {
   signal?: AbortSignal;
 }): <T>(iterable: AsyncIterable<T>) => AsyncIterable<T>;
 
+// WebSocket Connectors
+declare module './connectors/websocket' {
+  export * from './connectors/websocket';
+}
+
 // Default export (kept for convenience)
 declare const _default: {
   fromEventTarget: typeof fromEventTarget,
@@ -107,12 +113,19 @@ declare const _default: {
   retryIterable: typeof retryIterable;
   scan: typeof scan;
   distinctUntilChanged: typeof distinctUntilChanged;
-  debounceTime: typeof debounceTime;
+  debounceTime: typeof debounceTime,
   throttleTime: typeof throttleTime;
   timeout: typeof timeout;
   merge: typeof merge;
   zip: typeof zip;
   withQueue: typeof withQueue;
+  
+  // WebSocket Connectors
+  connectors: {
+    createWebSocketClient: typeof import('./connectors/websocket').createWebSocketClient;
+    createWebSocketServer: typeof import('./connectors/websocket').createWebSocketServer;
+    createHybridServer: typeof import('./connectors/websocket').createHybridServer;
+  };
   QUEUE_POLICIES: typeof QUEUE_POLICIES;
 };
 export default _default;

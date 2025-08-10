@@ -4,7 +4,7 @@
  * @param {*} seed - The initial accumulator value
  * @returns {Operator} A function that takes an async iterable and returns a new async iterable
  */
-export function scan(reducer, seed) {
+function scan(reducer, seed) {
   return async function* (source) {
     let acc = seed;
     let index = 0;
@@ -15,3 +15,6 @@ export function scan(reducer, seed) {
     }
   };
 }
+
+export { scan };
+export default scan;

@@ -3,7 +3,7 @@
  * @param {...AsyncIterable} sources - The async iterables to merge
  * @returns {AsyncIterable} A new async iterable that yields values from all sources
  */
-export function merge(...sources) {
+function merge(...sources) {
   return {
     async *[Symbol.asyncIterator]() {
       // Convert each source to an async iterator
@@ -59,3 +59,6 @@ export function merge(...sources) {
     }
   };
 }
+
+export { merge };
+export default merge;

@@ -1,6 +1,6 @@
 {
   "name": "salahor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Zero-dependency universal connectors between Events, EventTargets and AsyncIterables with lightweight operators.",
   "type": "module",
   "exports": {
@@ -8,7 +8,28 @@
       "types": "./src/index.d.ts",
       "import": "./src/index.js",
       "default": "./src/index.js"
-    }
+    },
+    "./operators": {
+      "types": "./src/operators/index.d.ts",
+      "import": "./src/operators/index.js"
+    },
+    "./sources": {
+      "types": "./src/sources/index.d.ts",
+      "import": "./src/sources/index.js"
+    },
+    "./utils": {
+      "types": "./src/utils/index.d.ts",
+      "import": "./src/utils/index.js"
+    },
+    "./core": {
+      "types": "./src/core/index.d.ts",
+      "import": "./src/core/index.js"
+    },
+    "./workers": {
+      "types": "./src/workers/index.d.ts",
+      "import": "./src/workers/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
@@ -23,7 +44,12 @@
     "async-iterable",
     "stream",
     "connector",
-    "zero-dependency"
+    "zero-dependency",
+    "reactive",
+    "observable",
+    "async",
+    "worker",
+    "webworker"
   ],
   "engines": {
     "node": ">=18"
@@ -43,9 +69,14 @@
     "access": "public"
   },
   "scripts": {
-    "prepare": "node -e \"console.log('uniconnect ready')\""
+    "prepare": "node -e \"console.log('salahor ready')\"",
+    "test": "node test/modular-test.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
   },
   "dependencies": {
-    "salahor": "^0.2.0"
+    "salahor": "^0.3.0",
+    "ws": "^8.18.3"
   }
 }
