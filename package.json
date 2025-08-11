@@ -1,6 +1,6 @@
 {
   "name": "salahor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Zero-dependency universal connectors between Events, EventTargets and AsyncIterables with lightweight operators.",
   "type": "module",
   "exports": {
