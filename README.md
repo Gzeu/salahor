@@ -3,12 +3,14 @@
 [![npm version](https://img.shields.io/npm/v/salahor.svg)](https://www.npmjs.com/package/salahor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/salahor)](https://nodejs.org/)
+[![Browser Support](https://img.shields.io/badge/browser-support-brightgreen)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncGenerator)
 
-Zero-dependency universal connectors between Events, EventTargets and AsyncIterables with lightweight operators. Node 18+.
+Universal connectors between Events, EventTargets and AsyncIterables with lightweight operators. Works in both Node.js (v18+) and modern browsers.
 
 ## Features
 
-- 🚀 **Zero Dependencies** - Lightweight and fast
+- 🌐 **Web & Node.js** - Works seamlessly in both browser and Node.js environments
+- 🚀 **Lightweight and Fast** - Minimal overhead for maximum performance
 - 🔄 **Universal Connectors** - Bridge between Events, EventTargets, and AsyncIterables
 - ⚡ **Lightweight Operators** - Functional operators for data transformation
 - 🧵 **Worker Support** - Offload CPU-intensive tasks to worker threads
@@ -152,6 +154,184 @@ function processImage(imageData) {
 
 // Process image in a worker
 const processedImage = await runInWorker(processImage, imageData);
+```
+
+## MQTT Connector
+
+The MQTT connector provides a simple and efficient way to work with MQTT messaging in both Node.js and browser environments.
+
+### Features
+
+- 📡 **Cross-Platform** - Works in both Node.js and modern browsers
+- 🔄 **Async Iterable Interface** - Use familiar `for await...of` syntax
+- 🛠 **TypeScript Support** - Full type definitions included
+- 🔌 **Automatic Reconnection** - Built-in reconnection handling
+- 🧹 **Resource Management** - Proper cleanup of subscriptions and connections
+
+### Installation
+
+```bash
+npm install mqtt
+# or
+yarn add mqtt
+```
+
+> **Note**: The MQTT connector requires the `mqtt` package as a peer dependency for Node.js environments.
+
+### Usage
+
+#### Basic Example
+
+```javascript
+import { createMqttClient } from 'salahor/connectors/mqtt';
+
+async function main() {
+  // Create an MQTT client
+  const client = await createMqttClient({
+    url: 'ws://test.mosquitto.org:8080',
+    mqttOptions: {
+      clientId: `client-${Math.random().toString(16).substr(2, 8)}`,
+      reconnectPeriod: 1000
+    }
+  });
+
+  try {
+    // Subscribe to a topic
+    const subscription = await client.subscribe('salahor/test/topic');
+    
+    // Handle incoming messages
+    (async () => {
+      for await (const message of subscription) {
+        console.log('Received message:', message);
+        // message format: { topic: string, message: string }
+      }
+    })();
+
+    // Publish a message
+    await client.publish('salahor/test/topic', JSON.stringify({
+      value: 'Hello, MQTT!',
+      timestamp: Date.now()
+    }));
+
+    // Keep the connection alive for a while
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  } finally {
+    // Clean up
+    await client.close();
+  }
+}
+
+main().catch(console.error);
+```
+
+#### Browser Example
+
+The same code works in the browser, but you'll need to use a WebSocket MQTT broker:
+
+```javascript
+import { createMqttClient } from 'salahor/connectors/mqtt';
+
+async function setupMqtt() {
+  const client = await createMqttClient({
+    url: 'ws://test.mosquitto.org:8080',
+    mqttOptions: {
+      clientId: `browser-${Math.random().toString(16).substr(2, 8)}`
+    }
+  });
+
+  // Subscribe to a topic
+  const subscription = await client.subscribe('salahor/browser/test');
+  
+  // Handle incoming messages
+  (async () => {
+    for await (const { topic, message } of subscription) {
+      const data = JSON.parse(message);
+      console.log(`[${topic}]`, data);
+    }
+  })();
+
+  // Publish a message when a button is clicked
+  document.getElementById('publishBtn').addEventListener('click', async () => {
+    await client.publish('salahor/browser/test', JSON.stringify({
+      action: 'button_click',
+      timestamp: Date.now()
+    }));
+  });
+
+  // Clean up when the page is unloaded
+  window.addEventListener('beforeunload', () => {
+    client.close().catch(console.error);
+  });
+}
+
+setupMqtt().catch(console.error);
+```
+
+### API Reference
+
+#### `createMqttClient(options) -> Promise<MqttClient>`
+
+Creates a new MQTT client.
+
+**Parameters:**
+- `options` (Object):
+  - `url` (string): MQTT broker URL (e.g., 'mqtt://test.mosquitto.org' or 'ws://test.mosquitto.org:8080')
+  - `mqttOptions` (Object): MQTT client options (see [MQTT.js documentation](https://github.com/mqttjs/MQTT.js#client))
+  - `signal` (AbortSignal): Optional AbortSignal to close the connection
+
+**Returns:**
+- `Promise<MqttClient>`: A promise that resolves to an MQTT client instance
+
+#### `MqttClient`
+
+##### `subscribe(topic, options) -> AsyncIterable<{topic: string, message: string}>`
+
+Subscribes to an MQTT topic.
+
+**Parameters:**
+- `topic` (string): Topic to subscribe to
+- `options` (Object): Subscription options
+  - `qos` (number): Quality of Service level (0, 1, or 2)
+
+**Returns:**
+- `AsyncIterable<{topic: string, message: string}>`: An async iterable of messages
+
+##### `publish(topic, message, options) -> Promise<void>`
+
+Publishes a message to an MQTT topic.
+
+**Parameters:**
+- `topic` (string): Topic to publish to
+- `message` (string | Buffer): Message to publish
+- `options` (Object): Publish options
+  - `qos` (number): Quality of Service level (0, 1, or 2)
+  - `retain` (boolean): Whether the message should be retained by the broker
+
+**Returns:**
+- `Promise<void>`: A promise that resolves when the message is published
+
+##### `close() -> Promise<void>`
+
+Closes the MQTT connection and cleans up resources.
+
+**Returns:**
+- `Promise<void>`: A promise that resolves when the connection is closed
+
+### Error Handling
+
+The MQTT client emits the following events:
+
+- `error`: Emitted when an error occurs
+- `close`: Emitted when the connection is closed
+
+```javascript
+client.on('error', (error) => {
+  console.error('MQTT error:', error);
+});
+
+client.on('close', () => {
+  console.log('MQTT connection closed');
+});
 ```
 
 ## Contributing

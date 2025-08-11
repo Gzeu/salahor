@@ -76,6 +76,9 @@
     "@playwright/test": "^1.54.2"
   },
   "dependencies": {
+    "@types/paho-mqtt": "^1.0.10",
+    "mqtt": "^5.14.0",
+    "paho-mqtt": "^1.1.0",
     "salahor": "^0.3.0",
     "ws": "^8.18.3"
   }
