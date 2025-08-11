@@ -1,6 +1,6 @@
 {
   "name": "salahor",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Zero-dependency universal connectors between Events, EventTargets and AsyncIterables with lightweight operators.",
   "type": "module",
   "exports": {
@@ -73,13 +73,11 @@
     "test": "node test/modular-test.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.2"
-  },
-  "dependencies": {
+    "@playwright/test": "^1.54.2",
     "@types/paho-mqtt": "^1.0.10",
     "mqtt": "^5.14.0",
     "paho-mqtt": "^1.1.0",
-    "salahor": "^0.3.0",
     "ws": "^8.18.3"
-  }
+  },
+  "dependencies": {}
 }
