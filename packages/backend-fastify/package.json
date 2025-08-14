@@ -1,0 +1,74 @@
+{
+  "name": "@salahor/backend-fastify",
+  "version": "2.0.0",
+  "description": "Fastify plugin for Salahor - High-performance real-time capabilities for Fastify applications",
+  "keywords": [
+    "fastify",
+    "plugin",
+    "server",
+    "realtime",
+    "salahor",
+    "backend"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "pnpm run clean",
+    "build": "tsc -p tsconfig.build.json",
+    "build:watch": "tsc -p tsconfig.build.json --watch",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build",
+    "preversion": "pnpm test",
+    "dev": "nodemon --exec ts-node src/demo/server.ts",
+    "start": "node dist/demo/server.js"
+  },
+  "dependencies": {
+    "@salahor/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "fastify": "^4.0.0",
+    "@fastify/cors": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.7",
+    "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@typescript-eslint/parser": "^6.4.0",
+    "eslint": "^8.47.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.2",
+    "rimraf": "^5.0.1",
+    "typescript": "^5.1.6",
+    "vitest": "^0.34.3",
+    "ts-node": "^10.9.1",
+    "nodemon": "^3.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gzeu/salahor.git",
+    "directory": "packages/backend-fastify"
+  },
+  "bugs": {
+    "url": "https://github.com/Gzeu/salahor/issues"
+  },
+  "homepage": "https://github.com/Gzeu/salahor/tree/main/packages/backend-fastify#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "sideEffects": false
+}

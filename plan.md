@@ -114,3 +114,235 @@
 
 ## Current Goal
 Refactor project structure and clean up unused code/files
+
+# Plan for Modular npm Packages (salahor-*)
+
+## Vision
+Create a modular, production-ready suite of npm packages for realtime communication and event streaming, with a focus on:
+- Zero dependencies (except where absolutely necessary)
+- TypeScript-first development
+- Modern ESM modules
+- Tree-shaking friendly
+- Comprehensive documentation
+- 100% test coverage
+
+## Current Status (2025-08-11)
+
+### Completed (100%)
+- ✅ Monorepo structure with pnpm workspaces
+- ✅ Core package (`@salahor/core`) with event streams and operators
+- ✅ WebSocket connector (`@salahor/websocket`) - client and server implementation
+
+### In Progress (30%)
+- 🟡 Protocol Connectors
+  - WebSocket: Client/Server implemented, needs more tests
+  - SSE: Planning phase
+  - MQTT: Not started
+  - GraphQL Subscriptions: Not started
+
+### Not Started (0%)
+- Frontend Integrations (React, Vue, Svelte)
+- Backend Adapters (Redis, Kafka, etc.)
+- Demo/Starter Apps
+- Documentation & CI/CD (10% - initial setup)
+
+## Roadmap
+
+### Phase 1: Core Infrastructure (90% Complete)
+- [x] Set up monorepo with pnpm workspaces
+- [x] Implement core event stream functionality
+- [x] Create WebSocket connector (client & server)
+- [ ] Add comprehensive test suite
+- [ ] Set up CI/CD pipeline
+- [ ] Write documentation
+
+### Phase 2: Protocol Connectors (30%)
+- [x] WebSocket (client & server)
+- [ ] Server-Sent Events (SSE)
+- [ ] MQTT
+- [ ] GraphQL Subscriptions
+- [ ] WebRTC Data Channels
+
+### Phase 3: Frontend Integrations (0%)
+- [ ] React hooks and components
+- [ ] Vue composition API
+- [ ] Svelte stores
+- [ ] Angular services
+
+### Phase 4: Backend Adapters (0%)
+- [ ] Redis Pub/Sub
+- [ ] Kafka
+- [ ] RabbitMQ
+- [ ] PostgreSQL LISTEN/NOTIFY
+
+### Phase 5: Tooling & DX (10%)
+- [ ] DevTools integration
+- [ ] Performance monitoring
+- [ ] Debugging utilities
+- [ ] CLI tools
+
+## Current Focus: WebSocket Connector
+
+### Completed
+- ✅ Basic client implementation
+- ✅ Server implementation
+- ✅ TypeScript types
+- ✅ Basic test suite
+
+### In Progress
+- 🔄 Error handling and recovery
+- 🔄 Reconnection logic
+- 🔄 Message serialization/deserialization
+- 🔄 Performance optimization
+
+### Next Steps
+1. Add more test cases for edge cases
+2. Implement message compression
+3. Add support for subprotocols
+4. Document WebSocket API
+
+## Project Structure
+```
+packages/
+  core/                 # Core event stream implementation
+  protocol-connectors/  # Protocol implementations
+    websocket/          # WebSocket client & server
+    sse/                # Server-Sent Events
+    mqtt/               # MQTT client
+  frontend/            # Framework integrations
+    react/
+    vue/
+    svelte/
+  backend/             # Backend adapters
+    redis/
+    kafka/
+    postgres/
+starters/              # Example/starter projects
+  chat-app/
+  realtime-dashboard/
+  iot-monitoring/
+tools/                 # Development tools
+  scripts/
+  templates/
+```
+
+## Development Guidelines
+1. **Code Style**:
+   - TypeScript with strict mode
+   - ESLint + Prettier
+   - JSDoc for public APIs
+
+2. **Testing**:
+   - Vitest for unit tests
+   - 100% coverage goal
+   - E2E tests for integrations
+
+3. **Documentation**:
+   - TSDoc for API reference
+   - Guides and examples
+   - Architecture decisions
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+2. Build all packages:
+   ```bash
+   pnpm build
+   ```
+
+3. Run tests:
+   ```bash
+   pnpm test
+   ```
+
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+MIT
+
+- salahor-graphql-subscriptions
+  - Adapter pentru GraphQL Subscriptions (ex: via websockets) la AsyncIterable.
+  - Use-case: UI-uri realtime și dashboard-uri.
+
+- salahor-prisma-listener
+  - Listener pentru evenimente DB (de exemplu cu channel-uri Postgres) în AsyncIterable.
+  - Use-case: invalidări cache, proiecții CQRS, trigger-e aplicative.
+
+- salahor-amqp (RabbitMQ)
+  - Consum/Publish cu QoS și ack management expus ergonomic prin AsyncIterable.
+  - Use-case: work queue, task distribution, integrare legacy.
+
+## 2) Observabilitate și diagnostic
+
+- salahor-metrics
+  - Hook-uri pentru a măsura latență, throughput, buffer occupancy, erori pe fiecare operator/pipeline.
+  - Export Prometheus/OpenTelemetry.
+  - Use-case: monitorizare în producție, SLO-uri.
+
+### salahor-logger
+  - Operator de logare structurată (JSON), corelată pe pipeline-uri.
+  - Use-case: audit și debug facil al fluxurilor reactive.
+
+### salahor-react
+  - Hook-uri React: useAsyncIterable, useEventTargetStream, adaptor către Suspense.
+  - Use-case: UI declarativ cu for await...of sub capotă, fără dependințe grele.
+
+### salahor-vue / salahor-svelte
+  - Store-uri și helperi pentru a consuma fluxuri în componente reactive.
+  - Use-case: integrare ușoară în framework-urile moderne.
+
+### salahor-forms
+  - Fluxuri pentru validare debounce, transformări, auto-save cu retry.
+  - Use-case: formulare mari cu UX fluid.
+
+### salahor-animations
+  - Operatorii time-based pentru timeline-uri, play/pause, combinare inputuri.
+  - Use-case: interacțiuni rafinate fără biblioteci suplimentare.
+
+### salahor-http
+  - Adaptere Request/Response stream (Fetch, Node streams) în AsyncIterable + operators de retry/backoff.
+## Starter Kits
+
+### IoT Starter Kit
+- **Description**: End-to-end IoT solution with MQTT, buffering, and metrics
+- **Features**:
+  - Real-time device monitoring
+  - Data persistence
+  - Performance metrics
+  - Cross-platform (browser/Node.js)
+
+### Realtime Search Starter
+- **Description**: High-performance search implementation
+- **Features**:
+  - Debounced input
+  - Prefetching
+  - Client-side caching
+  - Optimized for large datasets
+
+### Video Analytics Starter
+- **Description**: Real-time video processing
+- **Features**:
+  - Worker pool for frame processing
+  - Event pipeline
+  - Performance monitoring
+  - Modern web technologies
+
+## MQTT Connector (Planned)
+- **Features**:
+  - AsyncIterable interface
+  - Automatic reconnection
+  - QoS support
+  - Cross-platform (Node.js and browser)
+- **Use Cases**:
+  - IoT device communication
+  - Real-time messaging
+  - Cross-device synchronization

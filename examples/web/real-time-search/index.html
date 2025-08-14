@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Search Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .search-container {
+      margin: 20px 0;
+    }
+    #search-input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .results {
+      margin-top: 20px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      min-height: 200px;
+      padding: 10px;
+    }
+    .result-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .result-item:last-child {
+      border-bottom: none;
+    }
+    .status {
+      color: #666;
+      font-style: italic;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Real-time Search</h1>
+  <div class="search-container">
+    <input type="text" id="search-input" placeholder="Search for a country...">
+    <div id="status" class="status">Type to search</div>
+    <div id="results" class="results"></div>
+  </div>
+
+  <script type="module">
+    import { createEventStream, debounceTime, filter, map } from '../../../packages/core/dist/index.js';
+
+    // Sample data - in a real app, this would be an API call
+    const countries = [
+      'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola',
+      'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',
+      'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus',
+      'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia',
+      'Brazil', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cabo Verde',
+      'Cambodia', 'Cameroon', 'Canada', 'Chile', 'China',
+      'Colombia', 'Congo', 'Costa Rica', 'Croatia', 'Cuba',
+      'Cyprus', 'Czech Republic', 'Denmark', 'Djibouti', 'Dominica'
+    ];
+
+    // Simulate API call with debounce
+    function searchCountries(query) {
+      return new Promise((resolve) => {
+        // Simulate network delay
+        setTimeout(() => {
+          const results = countries.filter(country =>
+            country.toLowerCase().includes(query.toLowerCase())
+          );
+          resolve(results);
+        }, 300 + Math.random() * 500); // Random delay between 300-800ms
+      });
+    }
+
+    // Get DOM elements
+    const searchInput = document.getElementById('search-input');
+    const resultsContainer = document.getElementById('results');
+    const statusElement = document.getElementById('status');
+
+    // Create a stream of search terms
+    const searchTerm$ = createEventStream();
+
+    // Listen to input events
+    searchInput.addEventListener('input', (e) => {
+      searchTerm$.next(e.target.value);
+    });
+
+    // Process search with debounce and filtering
+    searchTerm$.pipe(
+      map(term => term.trim()),
+      filter(term => term.length >= 2), // Only search if term has 2+ chars
+      debounceTime(300) // Wait 300ms after user stops typing
+    ).subscribe({
+      next: async (term) => {
+        if (term.length === 0) {
+          resultsContainer.innerHTML = '';
+          statusElement.textContent = 'Type to search';
+          return;
+        }
+
+        statusElement.textContent = 'Searching...';
+        
+        try {
+          const results = await searchCountries(term);
+          
+          // Update UI with results
+          if (results.length > 0) {
+            resultsContainer.innerHTML = results
+              .map(country => `<div class="result-item">${highlightMatch(country, term)}</div>`)
+              .join('');
+            statusElement.textContent = `Found ${results.length} matches`;
+          } else {
+            resultsContainer.innerHTML = '<div class="result-item">No results found</div>';
+            statusElement.textContent = 'No matches found';
+          }
+        } catch (error) {
+          console.error('Search error:', error);
+          statusElement.textContent = 'Error performing search';
+          resultsContainer.innerHTML = '';
+        }
+      }
+    });
+
+    // Helper function to highlight matching text
+    function highlightMatch(text, query) {
+      if (!query) return text;
+      const regex = new RegExp(`(${query})`, 'gi');
+      return text.replace(regex, '<span style="background-color: yellow">$1</span>');
+    }
+  </script>
+</body>
+</html>

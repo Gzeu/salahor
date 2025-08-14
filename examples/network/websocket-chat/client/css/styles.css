@@ -1,0 +1,83 @@
+/* Main CSS file that imports all other CSS modules */
+@import 'base.css';
+@import 'sidebar.css';
+@import 'chat.css';
+@import 'modals.css';
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    overflow-y: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--sidebar-hover);
+  }
+  
+  .chat-container {
+    height: calc(100vh - 200px);
+  }
+  
+  .message {
+    max-width: 85%;
+  }
+  
+  .emoji-picker {
+    width: 280px;
+    right: 10px;
+    bottom: 70px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .sidebar,
+  .chat-input-container,
+  .chat-actions,
+  .emoji-picker {
+    display: none !important;
+  }
+  
+  .chat-messages {
+    overflow: visible;
+    height: auto;
+  }
+  
+  .message {
+    break-inside: avoid;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: more) {
+  :root {
+    --primary-color: #0044cc;
+    --success-color: #007a00;
+    --error-color: #c00;
+    --warning-color: #c05621;
+  }
+  
+  .message-bubble {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .typing-dots span {
+    animation: none !important;
+    opacity: 0.6;
+  }
+}

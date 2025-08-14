@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive Form Validation with Salahor</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Reactive Form Validation</h1>
+            <p>Using Salahor Event Streams</p>
+        </header>
+
+        <div class="form-container">
+            <form id="registrationForm" novalidate>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-user"></i></span>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            placeholder="Enter username"
+                            autocomplete="username"
+                            data-validate="required,minLength:3,maxLength:20,alphanumeric"
+                        >
+                    </div>
+                    <div class="error-message" id="username-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            placeholder="Enter email"
+                            autocomplete="email"
+                            data-validate="required,email"
+                        >
+                    </div>
+                    <div class="error-message" id="email-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-lock"></i></span>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Enter password"
+                            autocomplete="new-password"
+                            data-validate="required,minLength:8,strongPassword"
+                        >
+                        <button type="button" class="toggle-password" aria-label="Toggle password visibility">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="strength-meter">
+                            <div class="strength-meter-fill" id="password-strength"></div>
+                        </div>
+                        <div class="strength-label" id="password-strength-text">Password Strength</div>
+                    </div>
+                    <div class="error-message" id="password-error"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-lock"></i></span>
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            placeholder="Confirm your password"
+                            autocomplete="new-password"
+                            data-validate="required,match:password"
+                        >
+                    </div>
+                    <div class="error-message" id="confirmPassword-error"></div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input 
+                        type="checkbox" 
+                        id="terms" 
+                        name="terms"
+                        data-validate="required"
+                    >
+                    <label for="terms">I agree to the <a href="#" id="termsLink">Terms of Service</a> and <a href="#" id="privacyLink">Privacy Policy</a></label>
+                    <div class="error-message" id="terms-error"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                        <span class="btn-text">Create Account</span>
+                        <span class="spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
+                    </button>
+                    <button type="reset" class="btn btn-secondary">Reset Form</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="form-state">
+            <h3>Form State</h3>
+            <pre id="formState">{
+  "isValid": false,
+  "isSubmitting": false,
+  "isSubmitted": false,
+  "isDirty": false,
+  "fields": {}
+}</pre>
+        </div>
+    </div>
+
+    <div class="modal" id="termsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Terms of Service</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>By using our service, you agree to our terms and conditions. Please read them carefully.</p>
+                <!-- Terms content would go here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="formSuccess">
+        <div class="toast-content">
+            <i class="fas fa-check-circle"></i>
+            <span>Form submitted successfully!</span>
+        </div>
+    </div>
+
+    <script type="module" src="js/form-validator.js"></script>
+</body>
+</html>

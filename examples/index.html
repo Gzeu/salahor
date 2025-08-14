@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salahor Examples</title>
+  <style>
+    :root {
+      --primary: #4a6bdf;
+      --primary-dark: #3a56b2;
+      --text: #333;
+      --text-light: #666;
+      --bg: #f8f9fa;
+      --card-bg: #fff;
+      --border: #e1e4e8;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background-color: var(--bg);
+      padding: 0;
+      margin: 0;
+    }
+    
+    header {
+      background-color: var(--primary);
+      color: white;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 400;
+    }
+    
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    
+    .category {
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .category:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    }
+    
+    .category-header {
+      background: var(--primary);
+      color: white;
+      padding: 1rem 1.5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    .example-list {
+      list-style: none;
+    }
+    
+    .example-item {
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      transition: background-color 0.2s;
+    }
+    
+    .example-item:last-child {
+      border-bottom: none;
+    }
+    
+    .example-item:hover {
+      background-color: #f8f9ff;
+    }
+    
+    .example-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text);
+      text-decoration: none;
+    }
+    
+    .example-name {
+      font-weight: 500;
+    }
+    
+    .example-arrow {
+      color: var(--text-light);
+      font-size: 1.2rem;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-light);
+    }
+    
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+    
+    .readme-container {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 2rem;
+      margin-top: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .readme-content {
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 1rem;
+    }
+    
+    .readme-content h1,
+    .readme-content h2,
+    .readme-content h3 {
+      margin: 1.5rem 0 1rem 0;
+      color: var(--primary);
+    }
+    
+    .readme-content pre {
+      background: #f5f5f5;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    .readme-content code {
+      background: #f5f5f5;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.9em;
+    }
+    
+    .readme-content pre code {
+      padding: 0;
+      background: transparent;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+      .categories {
+        grid-template-columns: 1fr;
+      }
+      
+      .container {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Salahor Examples</h1>
+      <p class="subtitle">Interactive examples demonstrating the power of reactive programming</p>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div id="loading" class="loading">
+      <p>Loading examples...</p>
+    </div>
+    
+    <div id="error" class="error" style="display: none;">
+      <p>Failed to load examples. Please make sure the server is running and try again.</p>
+    </div>
+    
+    <div id="content" style="display: none;">
+      <div id="categories"></div>
+      <div id="example-detail"></div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const loadingEl = document.getElementById('loading');
+      const errorEl = document.getElementById('error');
+      const contentEl = document.getElementById('content');
+      const categoriesEl = document.getElementById('categories');
+      const exampleDetailEl = document.getElementById('example-detail');
+      
+      // Check if we're viewing a specific example
+      const urlParams = new URLSearchParams(window.location.search);
+      const examplePath = urlParams.get('example');
+      
+      // Load examples
+      fetch('/api/examples')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          loadingEl.style.display = 'none';
+          contentEl.style.display = 'block';
+          
+          if (examplePath) {
+            showExampleDetail(data, examplePath);
+          } else {
+            renderCategories(data);
+          }
+        })
+        .catch(error => {
+          console.error('Error loading examples:', error);
+          loadingEl.style.display = 'none';
+          errorEl.style.display = 'block';
+        });
+      
+      // Render the list of categories and examples
+      function renderCategories(categories) {
+        if (categories.length === 0) {
+          categoriesEl.innerHTML = '<p>No examples found. Please check if the project has been built.</p>';
+          return;
+        }
+        
+        categoriesEl.innerHTML = `
+          <h2>Available Examples</h2>
+          <p>Select an example to view details and run it.</p>
+          <div class="categories">
+            ${categories.map(category => `
+              <div class="category">
+                <div class="category-header">${category.category}</div>
+                <ul class="example-list">
+                  ${category.examples.map(example => `
+                    <li class="example-item">
+                      <a href="?example=${encodeURIComponent(category.category + '/' + example.name)}" class="example-link">
+                        <span class="example-name">${example.name}</span>
+                        <span class="example-arrow">→</span>
+                      </a>
+                    </li>
+                  `).join('')}
+                </ul>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      
+      // Show details for a specific example
+      function showExampleDetail(categories, examplePath) {
+        const [categoryName, exampleName] = examplePath.split('/');
+        const category = categories.find(cat => cat.category === categoryName);
+        
+        if (!category) {
+          window.location.href = '/';
+          return;
+        }
+        
+        const example = category.examples.find(ex => ex.name === exampleName);
+        
+        if (!example) {
+          window.location.href = '/';
+          return;
+        }
+        
+        // Load README content
+        fetch(`/api/readme/${categoryName}/${exampleName}`)
+          .then(response => response.text())
+          .then(markdown => {
+            // Simple markdown to HTML conversion (basic support for #, ##, ```, etc.)
+            let html = markdown
+              .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+              .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+              .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+              .replace(/`([^`]+)`/g, '<code>$1</code>')
+              .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+              .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+              .replace(/\n\n/g, '</p><p>')
+              .replace(/\n/g, '<br>');
+            
+            exampleDetailEl.innerHTML = `
+              <a href="/" class="back-link">← Back to all examples</a>
+              <h2>${exampleName}</h2>
+              <p>Category: ${categoryName}</p>
+              <div style="margin: 1.5rem 0;">
+                <a href="/${categoryName}/${exampleName}/index.html" class="button" style="
+                  display: inline-block;
+                  background: var(--primary);
+                  color: white;
+                  padding: 0.75rem 1.5rem;
+                  border-radius: 4px;
+                  text-decoration: none;
+                  font-weight: 500;
+                  transition: background-color 0.2s;
+                " onmouseover="this.style.backgroundColor='var(--primary-dark)'" 
+                  onmouseout="this.style.backgroundColor='var(--primary)'">
+                  Run Example
+                </a>
+              </div>
+              <div class="readme-container">
+                <h3>Documentation</h3>
+                <div class="readme-content">
+                  ${html || '<p>No documentation available.</p>'}
+                </div>
+              </div>
+            `;
+            
+            // Hide categories when showing example detail
+            categoriesEl.style.display = 'none';
+            exampleDetailEl.style.display = 'block';
+          })
+          .catch(error => {
+            console.error('Error loading README:', error);
+            exampleDetailEl.innerHTML = `
+              <a href="/" class="back-link">← Back to all examples</a>
+              <div class="error">Error loading documentation for this example.</div>
+            `;
+          });
+      }
+      
+      // Handle back/forward navigation
+      window.addEventListener('popstate', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const examplePath = urlParams.get('example');
+        
+        if (examplePath) {
+          // Reload the example
+          window.location.reload();
+        } else {
+          // Show categories
+          categoriesEl.style.display = 'block';
+          exampleDetailEl.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

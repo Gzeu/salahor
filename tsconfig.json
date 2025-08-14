@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2020"
+  },
+  "exclude": ["node_modules"],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/protocol-connectors/websocket" },
+    { "path": "./packages/protocol-connectors/sse" },
+    { "path": "./packages/frontend-react" },
+    { "path": "./packages/frontend-vue" },
+    { "path": "./packages/backend-fastify" },
+    { "path": "./packages/backend-express" }
+  ]
+}

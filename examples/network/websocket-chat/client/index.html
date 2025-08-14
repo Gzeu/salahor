@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salahor Chat - Real-time WebSocket Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-comments"></i> Salahor Chat</h1>
+                <p class="subtitle">Real-time messaging with WebSockets</p>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-details">
+                    <div class="username-container">
+                        <span id="usernameDisplay">Username</span>
+                        <button id="editUsernameBtn" class="icon-btn" aria-label="Edit username">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
+                    </div>
+                    <div class="user-status">
+                        <span class="status-indicator online"></span>
+                        <span id="connectionStatus">Connected</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="online-users">
+                <h3>Online Users <span id="onlineCount">0</span></h3>
+                <div id="usersList" class="users-list">
+                    <!-- Users will be added here dynamically -->
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="settingsBtn" class="icon-btn" aria-label="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-info">
+                    <h2>General Chat</h2>
+                    <p id="typingIndicator"></p>
+                </div>
+                <div class="chat-actions">
+                    <button id="emojiBtn" class="icon-btn" aria-label="Toggle emoji picker">
+                        <i class="far fa-smile"></i>
+                    </button>
+                    <button id="moreOptionsBtn" class="icon-btn" aria-label="More options">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="chatMessages" class="chat-messages">
+                <!-- Messages will be added here dynamically -->
+                <div class="welcome-message">
+                    <div class="welcome-content">
+                        <i class="fas fa-comments welcome-icon"></i>
+                        <h3>Welcome to Salahor Chat</h3>
+                        <p>Start a conversation or say hello to others!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="input-group">
+                    <button id="attachBtn" class="icon-btn" aria-label="Attach file">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <div class="message-input-wrapper">
+                        <div id="messageInput" 
+                             class="message-input" 
+                             contenteditable="true" 
+                             placeholder="Type a message..."
+                             role="textbox"
+                             aria-multiline="true"></div>
+                        <div class="input-actions">
+                            <button id="emojiBtnInline" class="icon-btn" aria-label="Insert emoji">
+                                <i class="far fa-smile"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="sendMessageBtn" class="send-btn" aria-label="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="typing-indicator" id="typingIndicatorBar">
+                    <!-- Typing indicators will be added here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Username Modal -->
+        <div class="modal" id="usernameModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Change Username</h3>
+                    <button class="close-modal" id="closeUsernameModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="newUsername">New Username</label>
+                        <input type="text" id="newUsername" placeholder="Enter a new username" autocomplete="off">
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button id="cancelUsernameBtn" class="btn btn-secondary">Cancel</button>
+                        <button id="saveUsernameBtn" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button class="close-modal" id="closeSettingsModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h4>Appearance</h4>
+                        <div class="setting-option">
+                            <span>Dark Mode</span>
+                            <label class="switch">
+                                <input type="checkbox" id="darkModeToggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-option">
+                            <span>Message Density</span>
+                            <select id="messageDensity">
+                                <option value="compact">Compact</option>
+                                <option value="comfortable" selected>Comfortable</option>
+                                <option value="spacious">Spacious</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>Notifications</h4>
+                        <div class="setting-option">
+                            <span>Enable Notifications</span>
+                            <label class="switch">
+                                <input type="checkbox" id="notificationsToggle" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-option">
+                            <span>Sound Alerts</span>
+                            <label class="switch">
+                                <input type="checkbox" id="soundToggle" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>About</h4>
+                        <p class="about-text">
+                            <strong>Salahor Chat</strong> v1.0.0<br>
+                            A real-time chat application powered by WebSockets and Salahor.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Emoji Picker (initially hidden) -->
+        <div class="emoji-picker" id="emojiPicker">
+            <div class="emoji-picker-header">
+                <div class="emoji-categories">
+                    <button class="emoji-category active" data-category="smileys">😊</button>
+                    <button class="emoji-category" data-category="gestures">👍</button>
+                    <button class="emoji-category" data-category="animals">🐱</button>
+                    <button class="emoji-category" data-category="food">🍕</button>
+                    <button class="emoji-category" data-category="travel">✈️</button>
+                    <button class="emoji-category" data-category="objects">💡</button>
+                    <button class="emoji-category" data-category="symbols">❤️</button>
+                    <button class="emoji-category" data-category="flags">🏳️</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="emojiGrid">
+                <!-- Emojis will be added here by JavaScript -->
+            </div>
+            <div class="emoji-search">
+                <input type="text" id="emojiSearch" placeholder="Search emojis...">
+            </div>
+        </div>
+        
+        <!-- Audio elements for sound effects -->
+        <audio id="messageSound" preload="auto">
+            <source src="https://assets.mixkit.co/active_ringtones/preview/mixkit-software-interface-message-notification-2570.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="notificationSound" preload="auto">
+            <source src="https://assets.mixkit.co/active_ringtones/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
+        </audio>
+    </div>
+    
+    <script type="module" src="js/chat.js"></script>
+</body>
+</html>

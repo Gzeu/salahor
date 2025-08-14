@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Basic Stream Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>Basic Stream Example</h1>
+  <div>
+    <button id="increment">Increment</button>
+    <button id="decrement">Decrement</button>
+    <button id="reset">Reset</button>
+  </div>
+  <div>Current Count: <span id="count">0</span></div>
+  <h3>Event Log:</h3>
+  <div id="output"></div>
+
+  <script type="module">
+    import { createEventStream } from '../../packages/core/dist/index.js';
+
+    // Get DOM elements
+    const incrementBtn = document.getElementById('increment');
+    const decrementBtn = document.getElementById('decrement');
+    const resetBtn = document.getElementById('reset');
+    const countDisplay = document.getElementById('count');
+    const output = document.getElementById('output');
+
+    // Create event streams
+    const increment$ = createEventStream();
+    const decrement$ = createEventStream();
+    const reset$ = createEventStream();
+
+    // Listen to button clicks
+    incrementBtn.addEventListener('click', () => increment$.next(1));
+    decrementBtn.addEventListener('click', () => decrement$.next(-1));
+    resetBtn.addEventListener('click', () => reset$.next(0));
+
+    // Create a stream of count changes
+    let count = 0;
+    
+    // Subscribe to increment and decrement events
+    increment$.subscribe({
+      next: (value) => {
+        count += value;
+        updateDisplay();
+        logEvent(`Incremented by ${value}`);
+      }
+    });
+
+    decrement$.subscribe({
+      next: (value) => {
+        count += value; // value is -1
+        updateDisplay();
+        logEvent(`Decremented by ${Math.abs(value)}`);
+      }
+    });
+
+    reset$.subscribe({
+      next: () => {
+        count = 0;
+        updateDisplay();
+        logEvent('Counter reset');
+      }
+    });
+
+    // Update the display
+    function updateDisplay() {
+      countDisplay.textContent = count;
+    }
+
+    // Log events to the output
+    function logEvent(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.textContent = `[${timestamp}] ${message} (Count: ${count})`;
+      output.prepend(entry);
+    }
+
+    // Initial log
+    logEvent('Application started');
+  </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Base directory to resolve non-relative module names */
+    "baseUrl": ".",
+    
+    /* Specify the root directory of input files */
+    "rootDir": "src",
+    
+    /* Specify the output directory for compiled files */
+    "outDir": "dist",
+    
+    /* Enable project compilation */
+    "composite": true,
+    
+    /* Generate .d.ts files */
+    "declaration": true,
+    "declarationMap": true,
+    
+    /* Generate source maps */
+    "sourceMap": true,
+    
+    /* Support for iterators in ES5/ES3 */
+    "downlevelIteration": true,
+    
+    /* Type declaration files to be included in compilation */
+    "types": ["node"],
+    
+    /* Custom path mappings */
+    "paths": {
+      "@salahor/core": ["./src/index.ts"],
+      "@salahor/*": ["../../packages/*/src"]
+    },
+    
+    /* Module Resolution */
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    
+    /* Strict Type-Checking */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    
+    /* Additional Checks */
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/__tests__"]
+}

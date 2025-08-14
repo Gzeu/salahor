@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Base directory to resolve non-relative module names */
+    "baseUrl": ".",
+    
+    /* Specify the root directory of input files */
+    "rootDir": "src",
+    
+    /* Specify the output directory for compiled files */
+    "outDir": "dist",
+    
+    /* List of root directories whose combined content represents the structure of the project at runtime */
+    "rootDirs": ["src"],
+    
+    /* Type declaration files to be included in compilation */
+    "types": ["node", "@types/jest"],
+    
+    /* Custom path mappings */
+    "paths": {
+      "@salahor/*": ["../../packages/*/src"],
+      "@salahor/core": ["../../packages/core/src"],
+      "@salahor/utils/*": ["../../packages/utils/*/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "**/__tests__"]
+}

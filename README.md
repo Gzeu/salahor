@@ -3,42 +3,96 @@
 [![npm version](https://img.shields.io/npm/v/salahor.svg)](https://www.npmjs.com/package/salahor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/salahor)](https://nodejs.org/)
-[![Browser Support](https://img.shields.io/badge/browser-support-brightgreen)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncGenerator)
-[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/yourusername/salahor/actions)
-[![Minzipped Size](https://img.shields.io/bundlephobia/minzip/salahor)](https://bundlephobia.com/package/salahor)
+[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/Gzeu/salahor/actions)
 
-Salahor is a high-performance, zero-dependency library that provides universal connectors between Events, EventTargets, and AsyncIterables with a rich set of operators. Optimized for both Node.js (v18+) and modern browsers, it's perfect for building reactive applications with minimal overhead.
+Salahor is a high-performance, zero-dependency library that provides universal connectors between Events, EventTargets, and AsyncIterables. Optimized for both Node.js (v18+) and modern browsers, it's perfect for building reactive applications with minimal overhead.
 
-**Key Highlights:**
-- ⚡ **Blazing Fast**: Optimized for performance with minimal overhead
-- 🧩 **Zero Dependencies**: Lightweight and dependency-free
-- 🚀 **Modern API**: Built with modern JavaScript and TypeScript in mind
-- 🔄 **Reactive Programming**: First-class support for reactive programming patterns
-- 🛠 **Developer Experience**: Comprehensive TypeScript support and detailed JSDoc
+## 🚀 Features
 
-## ✨ Features
+- **Universal Connectors**: Seamlessly connect between different async patterns
+- **Cross-Platform**: Works in both browser and Node.js environments
+- **High Performance**: Optimized for maximum throughput and minimal overhead
+- **TypeScript First**: Built with TypeScript for excellent type safety
+- **Zero Dependencies**: Lightweight and dependency-free
+- **Worker Pool**: Efficiently manage CPU-intensive tasks with worker threads
+- **Stream Adapters**: Work with Node.js streams and web streams
 
-### Core Features
-- 🌐 **Cross-Platform** - Seamless operation in both browser and Node.js environments
-- ⚡ **High Performance** - Optimized for maximum throughput and minimal overhead
-- 🧠 **Memory Efficient** - Smart resource management and cleanup
-- 🛡 **Robust Error Handling** - Comprehensive error handling and recovery mechanisms
+## 📦 Installation
 
-### Connectors & Adapters
-- 🔌 **Event System Integration** - Connect to DOM EventTarget, Node.js EventEmitter, and Web APIs
-- 🔄 **Async Iterable Bridges** - Convert between different async patterns with ease
-- 🌉 **Stream Adapters** - Work with Node.js streams and web streams
+```bash
+# Using npm
+npm install salahor
 
-### Worker System
-- 🧵 **Worker Pool** - Efficiently manage and distribute CPU-intensive tasks
-- 🔄 **RPC Support** - Simple remote procedure calls between main thread and workers
-- ⚙️ **Automatic Load Balancing** - Dynamic scaling based on workload
+# Using yarn
+yarn add salahor
 
-### Developer Experience
-- 🎯 **TypeScript First** - Full type definitions and generics
-- 📚 **Comprehensive Documentation** - Detailed API references and examples
-- 🔍 **Debugging Support** - Built-in debugging utilities and logging
-- 🧪 **Test Utilities** - Tools for testing async streams and workers
+# Using pnpm
+pnpm add salahor
+```
+
+## 🛠️ Usage
+
+### Basic Example
+
+```typescript
+import { fromEvent, map, filter } from 'salahor';
+
+// Create a stream from DOM events
+const click$ = fromEvent(document, 'click');
+
+// Process the stream
+const result$ = click$.pipe(
+  map(event => ({
+    x: event.clientX,
+    y: event.clientY,
+    timestamp: Date.now()
+  })),
+  filter(coord => coord.x % 2 === 0) // Only even x-coordinates
+);
+
+// Subscribe to the stream
+result$.subscribe(coord => {
+  console.log('Clicked at:', coord);
+});
+```
+
+### Worker Pool Example
+
+```typescript
+import { WorkerPool } from 'salahor/worker';
+
+// Create a worker pool with 4 workers
+const pool = new WorkerPool({
+  size: 4,
+  workerPath: './worker.js'
+});
+
+// Process tasks in parallel
+const results = await Promise.all(
+  Array(10).fill(0).map((_, i) => 
+    pool.run({ task: 'processData', data: i })
+  )
+);
+
+console.log('Results:', results);
+```
+
+## 📚 Documentation
+
+For detailed documentation, API reference, and more examples, please visit our [documentation website](https://gzeu.github.io/salahor/).
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with ❤️ by the Salahor team
+- Inspired by RxJS, xstream, and other reactive programming libraries
 
 ## 🚀 Installation
 
