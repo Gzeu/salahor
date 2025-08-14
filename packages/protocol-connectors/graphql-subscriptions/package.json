@@ -1,6 +1,6 @@
 {
   "name": "@salahor/graphql-subscriptions",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "GraphQL Subscriptions connector for Salahor - Zero-dependency universal connectors between Events, EventTargets and AsyncIterables",
   "keywords": [
     "graphql",
