@@ -62,7 +62,7 @@ function mockFileNotFound() {
 
 // Helper to set up mock for file access with specific permissions
 function mockFileAccessWithPermissions(permissions: number) {
-  mockImplementations.accessSync.mockImplementation((path: string, mode?: number) => {
+  mockImplementations.accessSync.mockImplementation((_path: string, mode?: number) => {
     if (mode && (mode & permissions) !== mode) {
       const error = new Error('Permission denied');
       (error as any).code = 'EACCES';
@@ -70,7 +70,7 @@ function mockFileAccessWithPermissions(permissions: number) {
     }
   });
   
-  mockImplementations.access.mockImplementation(async (path: string, mode?: number) => {
+  mockImplementations.access.mockImplementation(async (_path: string, mode?: number) => {
     if (mode && (mode & permissions) !== mode) {
       const error = new Error('Permission denied');
       (error as any).code = 'EACCES';

@@ -1,11 +1,12 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
     "baseUrl": ".",
     "paths": {
+      "@salahor/core": ["../../../core/dist/index.d.ts"],
       "@salahor/*": ["../../*/src"]
     },
     "types": ["node"]

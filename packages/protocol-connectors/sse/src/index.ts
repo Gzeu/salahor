@@ -1,4 +1,4 @@
-import { createEventStream } from '@salahor/core';
+import { createEventStream } from '../../../core/dist/event-stream.js';
 import type { 
   SseClient, 
   SseClientOptions, 

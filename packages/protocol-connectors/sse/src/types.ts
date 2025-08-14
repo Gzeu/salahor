@@ -1,4 +1,4 @@
-import { EventStream } from '@salahor/core';
+import { EventStream } from '../../../core/dist/event-stream.js';
 
 // Node.js compatible request/response interfaces
 export interface NodeRequest {

@@ -59,8 +59,7 @@
     "provenance": true
   },
   "dependencies": {
-    "@salahor/core": "workspace:*",
-    "tslib": "^2.6.0"
+    "@salahor/core": "workspace:"
   },
   "peerDependencies": {
     "ws": "^8.0.0"

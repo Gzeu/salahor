@@ -48,6 +48,9 @@
     "access": "public",
     "provenance": true
   },
+  "dependencies": {
+    "@salahor/core": "workspace:*"
+  },
   "peerDependencies": {
     "eventsource-parser": "^2.0.0"
   },
