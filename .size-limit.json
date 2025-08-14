@@ -1,0 +1,45 @@
+{
+  "packages": [
+    {
+      "name": "@salahor/core",
+      "path": "packages/core/dist/index.js",
+      "limit": "10 KB"
+    },
+    {
+      "name": "@salahor/protocol-connectors-sse",
+      "path": "packages/protocol-connectors/sse/dist/index.js",
+      "limit": "15 KB"
+    },
+    {
+      "name": "@salahor/protocol-connectors-websocket",
+      "path": "packages/protocol-connectors/websocket/dist/index.js",
+      "limit": "20 KB"
+    },
+    {
+      "name": "@salahor/protocol-connectors-mqtt",
+      "path": "packages/protocol-connectors/mqtt/dist/index.js",
+      "limit": "25 KB"
+    },
+    {
+      "name": "@salahor/frontend-react",
+      "path": "packages/frontend-react/dist/index.js",
+      "limit": "30 KB"
+    },
+    {
+      "name": "@salahor/backend-express",
+      "path": "packages/backend-express/dist/index.js",
+      "limit": "35 KB"
+    },
+    {
+      "name": "@salahor/backend-fastify",
+      "path": "packages/backend-fastify/dist/index.js",
+      "limit": "35 KB"
+    }
+  ],
+  "ci": true,
+  "webpack": false,
+  "checkImportStack": true,
+  "disableCache": true,
+  "gzip": true,
+  "unlimited": ["@salahor/react-devtools"]
+}

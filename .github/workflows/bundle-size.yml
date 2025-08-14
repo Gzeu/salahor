@@ -1,0 +1,85 @@
+name: Bundle Size Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 20.x
+  PNPM_VERSION: 8.x
+
+jobs:
+  analyze:
+    name: Analyze Bundle Size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm -r build
+
+      - name: Install size-limit
+        run: pnpm add -D @size-limit/preset-small-lib size-limit
+
+      - name: Run size-limit
+        run: pnpm size-limit --json > .size-limit.json
+
+      - name: Upload size-limit results
+        uses: andresz1/size-limit-sarif-action@v1
+        with:
+          filepath: .size-limit.json
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compare bundle size
+        uses: andresz1/size-limit-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          build_script: "build:size"
+          skip_step: install
+          use_rest_api: true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: andresz1/size-limit-comment-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_total_bundle_size: true
+          show_unchanged: true
+          show_download_time: true
+          show_compressed: true
+          show_zipped: true
+
+  check-size:
+    name: Check Bundle Size
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check size limit
+        uses: andresz1/size-limit-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          check: true
+          build_script: "build:size"
+          skip_step: install
+          use_rest_api: true

@@ -27,6 +27,49 @@ Thank you for your interest in contributing to Salahor! We appreciate your time 
    pnpm build
    ```
 
+## 🤝 Pull Request Process
+
+1. **Branch Naming**
+   - Use descriptive branch names: `feat/feature-name`, `fix/issue-description`, `docs/update-readme`
+   - Keep branches focused on a single feature or fix
+
+2. **Commit Messages**
+   - Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+     - `feat:` for new features
+     - `fix:` for bug fixes
+     - `docs:` for documentation changes
+     - `style:` for formatting changes
+     - `refactor:` for code changes that neither fix bugs nor add features
+     - `test:` for adding missing tests
+     - `chore:` for changes to the build process or auxiliary tools
+   - Keep the first line under 72 characters
+   - Include a detailed description when necessary
+
+3. **Creating a Pull Request**
+   - Reference any related issues
+   - Provide a clear description of changes
+   - Update documentation if needed
+   - Ensure all tests pass
+   - Request reviews from maintainers
+
+## 🔍 Code Review Guidelines
+
+### For Reviewers
+- Be constructive and respectful
+- Focus on code quality, not personal preferences
+- Check for:
+  - Code correctness
+  - Performance implications
+  - Security considerations
+  - Test coverage
+  - Documentation updates
+
+### For Authors
+- Be open to feedback
+- Address all comments before marking as resolved
+- Keep the conversation focused on the code
+- Push fixes as new commits (we'll squash before merging)
+
 ## 🧪 Testing
 
 Run the test suite:
@@ -48,6 +91,44 @@ cd packages/core && pnpm test
 - Use `.test.ts` extension for test files
 - Follow the existing test patterns
 - Ensure tests are deterministic and independent
+
+## 📦 Package Publishing
+
+### Version Management
+- We use [Changesets](https://github.com/changesets/changesets) for version management
+- Each significant change should include a changeset
+- Version numbers follow [Semantic Versioning](https://semver.org/)
+
+### Publishing Process
+1. Create a changeset for your changes:
+   ```bash
+   pnpm changeset
+   ```
+2. Follow the interactive prompts to select packages and version bumps
+3. Commit the changeset file
+4. When ready to release:
+   ```bash
+   # Update versions and changelogs
+   pnpm changeset version
+   
+   # Install updated dependencies
+   pnpm install
+   
+   # Commit version updates
+   git add .
+   git commit -m "chore: update versions"
+   
+   # Publish to npm
+   pnpm -r publish --access public
+   
+   # Push changes and tags
+   git push --follow-tags
+   ```
+
+### Package Scopes
+- All packages are scoped under `@salahor`
+- Each package should have its own README.md
+- Keep dependencies minimal and well-documented
 
 ## 📝 Code Style
 

@@ -1,0 +1,105 @@
+name: Issue Management
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, milestoned, demilestoned, assigned, unassigned, closed, reopened]
+  issue_comment:
+    types: [created, edited, deleted]
+
+jobs:
+  welcome-new-issue:
+    name: Welcome New Issue
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome message
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.issue;
+            const issueAuthor = context.payload.issue.user.login;
+            
+            const welcomeMessage = `
+            👋 Hello @${issueAuthor}! Thank you for opening an issue!
+            
+            We appreciate you taking the time to report this. Our team will review it as soon as possible.
+            
+            Please make sure you've included:
+            - A clear description of the issue
+            - Steps to reproduce (if applicable)
+            - Expected vs. actual behavior
+            - Any relevant error messages or screenshots
+            
+            If this is a feature request, please describe the use case and expected behavior in detail.
+            `;
+            
+            await github.rest.issues.createComment({
+              owner: issue.owner,
+              repo: issue.repo,
+              issue_number: issue.number,
+              body: welcomeMessage
+            });
+
+  add-needs-triage-label:
+    name: Add Needs Triage Label
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add 'needs-triage' label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['needs-triage']
+            });
+
+  check-issue-template:
+    name: Check Issue Template
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if issue has minimal content
+        id: check-content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const minLength = 20; // Minimum characters for a meaningful issue
+            const isTooShort = issue.body.length < minLength;
+            
+            if (isTooShort) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `👋 Thanks for opening an issue! It looks like your issue might be missing some details. Could you please provide more information about the problem you're experiencing?`
+              });
+              
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['needs-more-info']
+              });
+              
+              core.setOutput('needs-more-info', 'true');
+            }
+
+  stale-issues:
+    name: Mark and Close Stale Issues
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 30
+          days-before-close: 7
+          stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs. Thank you for your contributions!'
+          close-issue-message: 'This issue has been automatically closed due to inactivity. Please feel free to reopen if this is still relevant.'
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'bug,enhancement,help wanted,good first issue,priority'
+          operations-per-run: 100
