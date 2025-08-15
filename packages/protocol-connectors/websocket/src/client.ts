@@ -1,5 +1,6 @@
 import { createEventStream } from '@salahor/core';
 import type { WebSocketClient, WebSocketClientOptions } from './types';
+import { devLogger, isDev, fileExists } from './utils';
 
 // Re-export types for backward compatibility
 export type { WebSocketClient, WebSocketClientOptions };
@@ -35,7 +36,7 @@ export function createWebSocketClient(
 
   const checkRequiredFiles = async (): Promise<void> => {
     // Skip file checks in development if explicitly disabled
-    const skipFileChecks = isDevelopment() && process.env.SKIP_FILE_CHECKS === 'true';
+    const skipFileChecks = isDev && process.env.SKIP_FILE_CHECKS === 'true';
     
     if (skipFileChecks) {
       devLogger.log('Skipping file existence checks in development (SKIP_FILE_CHECKS=true)');
@@ -57,12 +58,12 @@ export function createWebSocketClient(
         const exists = await fileExists(file);
         if (!exists) {
           const errorMsg = `Required file not found: ${file}`;
-          if (isDevelopment()) {
-            devLogger.warn(errorMsg);
-            devLogger.log('To skip file checks in development, set SKIP_FILE_CHECKS=true');
-          }
+          if (isDev) {
+          devLogger.warn(errorMsg);
+          devLogger.log('To skip file checks in development, set SKIP_FILE_CHECKS=true');
+        }
           throw new ConnectionError(errorMsg, 'ENOENT');
-        } else if (isDevelopment()) {
+        } else if (isDev) {
           devLogger.debug(`Verified file exists: ${file}`);
         }
       }
@@ -79,7 +80,7 @@ export function createWebSocketClient(
       await checkRequiredFiles();
       
       // If we get here, all files exist, proceed with connection
-      if (isDevelopment()) {
+      if (isDev) {
         devLogger.log(`Connecting to WebSocket: ${url}`);
       }
       
@@ -91,7 +92,7 @@ export function createWebSocketClient(
       
       const errorMsg = `Failed to create WebSocket (${errorCode}): ${errorMessage}`;
       
-      if (isDevelopment()) {
+      if (isDev) {
         devLogger.error(errorMsg, error instanceof Error ? error : undefined);
       } else {
         console.error(errorMsg);

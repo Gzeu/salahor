@@ -1,6 +1,6 @@
 {
   "name": "@salahor/websocket",
-  "version": "3.0.0",
+  "version": "5.0.0",
   "description": "WebSocket connector for Salahor - Zero-dependency universal connectors between Events, EventTargets and AsyncIterables",
   "keywords": [
     "websocket",
@@ -67,7 +67,7 @@
   "devDependencies": {
     "@playwright/test": "^1.54.2",
     "@types/node": "^20.5.7",
-    "@types/ws": "^8.5.10",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.4.0",
     "@typescript-eslint/parser": "^7.4.0",
     "@vitest/coverage-istanbul": "^0.34.3",
