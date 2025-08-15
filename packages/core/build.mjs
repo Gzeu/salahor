@@ -1,16 +1,17 @@
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, mkdirSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Ensure dist directory exists
+// Clean dist directory
 const distDir = join(__dirname, 'dist');
-if (!existsSync(distDir)) {
-  mkdirSync(distDir, { recursive: true });
+if (existsSync(distDir)) {
+  rmSync(distDir, { recursive: true, force: true });
 }
+mkdirSync(distDir, { recursive: true });
 
 // Get all TypeScript files in src directory (excluding test files)
 const srcDir = join(__dirname, 'src');
@@ -24,7 +25,7 @@ function findTypeScriptFiles(dir) {
     
     if (entry.isDirectory()) {
       // Skip __tests__ directories
-      if (entry.name !== '__tests__') {
+      if (entry.name !== '__tests__' && !entry.name.startsWith('.')) {
         findTypeScriptFiles(fullPath);
       }
     } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.spec.ts')) {

@@ -2,13 +2,37 @@ import { createEventStream } from '@salahor/core';
 import type { Server as WSServer, ServerOptions as WSServerOptions, WebSocket as WSSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import type { Server as HttpsServer } from 'https';
+import type { AddressInfo } from 'net';
 import type { WebSocketServer as IWebSocketServer, WebSocketServerOptions, WebSocketConnection } from './types';
+import { devLogger, isDev } from './utils';
+
+// Type guard to check if a value is a WebSocket server
+function isWebSocketServer(server: any): server is WSServer {
+  return server && 
+         typeof server.on === 'function' && 
+         typeof server.close === 'function';
+}
+
+// Type guard to check if a value is a Node.js HTTP server
+function isHttpServer(server: any): server is HttpServer | HttpsServer {
+  return server && 
+         typeof server.listen === 'function' && 
+         typeof server.close === 'function';
+}
 
 // Extend WebSocket interface to include isAlive property
 declare module 'ws' {
   interface WebSocket {
     isAlive?: boolean;
   }
+}
+
+// Type guard for WebSocket connection
+function isWebSocketConnection(connection: any): connection is WebSocketConnection {
+  return connection && 
+         typeof connection.send === 'function' && 
+         typeof connection.close === 'function' &&
+         'isOpen' in connection;
 }
 
 /**
@@ -97,7 +121,9 @@ function createWebSocketConnection(ws: WSSocket, request: any): WebSocketConnect
 export async function createWebSocketServer(
   options: WebSocketServerOptions = {}
 ): Promise<IWebSocketServer> {
-  console.log('[WebSocket] createWebSocketServer called at:', new Date().toISOString());
+  if (isDev) {
+    devLogger.log('[WebSocket] createWebSocketServer called at:', new Date().toISOString());
+  }
   console.log('[WebSocket] createWebSocketServer called with options:', JSON.stringify({
     ...options,
     // Don't log the entire server object
@@ -130,16 +156,58 @@ export async function createWebSocketServer(
   
   console.log(`[WebSocket] Extracted options - port: ${port}, host: ${host}, hasHttpServer: ${!!httpServer}`);
 
-  // Event streams
-  const connections = createEventStream<WebSocketConnection>();
-  const disconnections = createEventStream<WebSocketConnection>();
-  const closeEvents = createEventStream<void>();
-  const errorEvents = createEventStream<Error>();
-  
-  // Connection tracking
-  const activeConnections = new Map<string, WebSocketConnection>();
-  let isClosed = false;
-  let wss: WSServer | null = null;
+  // Server state
+  const state = {
+    // Event streams
+    connections: createEventStream<WebSocketConnection>(),
+    onClose: createEventStream<void>(),
+    onError: createEventStream<Error>(),
+    disconnections: createEventStream<{ connection: WebSocketConnection; code: number; reason: string }>(),
+    
+    // Connection tracking
+    activeConnections: new Map<string, WebSocketConnection>(),
+    isClosed: false,
+    wss: null as WSServer | null,
+    
+    // Helper methods
+    addConnection: (id: string, connection: WebSocketConnection) => {
+      state.activeConnections.set(id, connection);
+      state.connections.emit(connection);
+    },
+    
+    removeConnection: (id: string) => {
+      state.activeConnections.delete(id);
+    },
+    
+    closeAllConnections: async (code?: number, reason?: string) => {
+      const closePromises = Array.from(state.activeConnections.values())
+        .map(conn => new Promise<void>((resolve) => {
+          try {
+            conn.close(code, reason);
+          } catch (error) {
+            console.error(`Error closing connection ${conn.id}:`, error);
+          } finally {
+            resolve();
+          }
+        }));
+      
+      await Promise.all(closePromises);
+      state.activeConnections.clear();
+    },
+    
+    broadcast: (data: string | ArrayBuffer | Blob, excludeId?: string) => {
+      state.activeConnections.forEach((conn, id) => {
+        if (id !== excludeId && conn.isOpen) {
+          try {
+            conn.send(data);
+          } catch (error) {
+            console.error(`Error broadcasting to connection ${id}:`, error);
+            state.removeConnection(id);
+          }
+        }
+      });
+    }
+  };
   
   // Import the WebSocketServer from 'ws' package
   let WebSocketServer;
@@ -151,13 +219,20 @@ export async function createWebSocketServer(
     console.log('[WebSocket] Successfully imported ws module');
     
     // Handle both direct and default exports
-    WebSocketServer = wsModule.WebSocketServer || wsModule.default?.WebSocketServer || wsModule.Server || wsModule.default?.Server;
+    // The WebSocketServer is available as the default export or as a named export
+    WebSocketServer = 
+      (wsModule as any).WebSocketServer || // Check for named export
+      (wsModule as any).default?.WebSocketServer || // Check for default.WebSocketServer
+      wsModule.Server || // Check for named Server export
+      (wsModule as any).default?.Server; // Check for default.Server
+      
     console.log('[WebSocket] WebSocketServer constructor:', WebSocketServer ? 'found' : 'not found');
     
-    if (wsModule.WebSocketServer) console.log('[WebSocket] Found WebSocketServer in wsModule');
-    if (wsModule.default?.WebSocketServer) console.log('[WebSocket] Found WebSocketServer in wsModule.default');
+    // Debug logging
+    if ((wsModule as any).WebSocketServer) console.log('[WebSocket] Found WebSocketServer in wsModule');
+    if ((wsModule as any).default?.WebSocketServer) console.log('[WebSocket] Found WebSocketServer in wsModule.default');
     if (wsModule.Server) console.log('[WebSocket] Found Server in wsModule');
-    if (wsModule.default?.Server) console.log('[WebSocket] Found Server in wsModule.default');
+    if ((wsModule as any).default?.Server) console.log('[WebSocket] Found Server in wsModule.default');
   } catch (error) {
     console.error('[WebSocket] Failed to import WebSocketServer:', error);
     throw new Error('Failed to initialize WebSocket server: Missing required WebSocket server implementation');
@@ -202,11 +277,11 @@ export async function createWebSocketServer(
 
   // Helper function to handle broadcast messages
   async function handleBroadcastMessage(message: string | ArrayBuffer | Blob | ArrayBufferView, sender: WebSocketConnection): Promise<void> {
-    if (isClosed) return;
+    if (state.isClosed) return;
     
     const sendPromises: Promise<void>[] = [];
     
-    for (const [id, connection] of activeConnections.entries()) {
+    for (const [id, connection] of state.activeConnections.entries()) {
       // Don't send back to the sender
       if (id === sender.id) continue;
       
@@ -214,17 +289,17 @@ export async function createWebSocketServer(
       const sendPromise = new Promise<void>((resolve) => {
         try {
           if (connection.isOpen) {
-            connection.send(message);
+            connection.send(message as string | ArrayBuffer | Blob);
             resolve();
           } else {
             // If connection is closed, remove it from active connections
-            activeConnections.delete(id);
+            state.removeConnection(id);
             resolve();
           }
         } catch (error) {
           console.error(`[WebSocketServer] Error sending to client ${id}:`, error);
           // Remove the connection if there was an error
-          activeConnections.delete(id);
+          state.removeConnection(id);
           resolve(); // Resolve anyway to continue with other connections
         }
       });
@@ -241,7 +316,7 @@ export async function createWebSocketServer(
     async start(serverPort: number = port || 8080): Promise<void> {
       console.log(`[WebSocketServer] Starting server on port ${serverPort}...`);
       
-      if (wss && !isClosed) {
+      if (state.server && !state.isClosed) {
         console.log('[WebSocketServer] Server is already running');
         return;
       }
@@ -249,143 +324,80 @@ export async function createWebSocketServer(
       return new Promise((resolve, reject) => {
         try {
           // Close existing server if it exists
-          if (wss) {
-            wss.close();
+          if (state.server) {
+            state.server.close();
           }
 
           // Create new WebSocket server
           console.log('[WebSocketServer] Creating WebSocket server instance...');
-          wss = new WebSocketServer({ port: serverPort, host, ...wsOptions });
-          isClosed = false;
+          state.server = new WebSocketServer({ port: serverPort, host, ...wsOptions });
+          state.isClosed = false;
           
           console.log(`[WebSocketServer] WebSocket server created, waiting for 'listening' event...`);
           
           // Add a one-time listener for the 'listening' event
-          wss.once('listening', () => {
-            const address = wss?.address();
+          state.server.once('listening', () => {
+            const address = state.server?.address();
             const listenPort = typeof address === 'string' ? address : address?.port;
             console.log(`[WebSocketServer] Server is now listening on ${host}:${listenPort}`);
+            resolve();
           });
           
           // Add error handler for server errors
-          wss.on('error', (error) => {
+          state.server.on('error', (error) => {
             console.error('[WebSocketServer] WebSocket server error:', error);
+            reject(error);
           });
 
-          wss.on('connection', (ws: WSSocket, request: any) => {
-            if (isClosed) {
+          state.server.on('connection', (ws: WSSocket, request: any) => {
+            if (state.isClosed) {
               console.log('[WebSocketServer] Rejecting new connection - server is closing');
               ws.close(1013, 'Server is shutting down');
               return;
             }
 
             const connection = createWebSocketConnection(ws, request);
-            activeConnections.set(connection.id, connection);
+            state.activeConnections.set(connection.id, connection);
             
             console.log(`[WebSocketServer] New connection: ${connection.id} from ${connection.remoteAddress}`);
-            console.log(`[WebSocketServer] Active connections: ${activeConnections.size}`);
+            console.log(`[WebSocketServer] Active connections: ${state.activeConnections.size}`);
 
             // Log all active connections for debugging
-            if (activeConnections.size % 10 === 0) {
+            if (state.activeConnections.size % 10 === 0) {
               console.log('[WebSocketServer] Current connection IDs:', 
-                Array.from(activeConnections.keys()).join(', '));
+                Array.from(state.activeConnections.keys()).join(', '));
             }
+
+            // Emit connection event
+            state.connections.next(connection);
 
             // Handle incoming messages from this connection
             const messageSubscription = connection.messages.subscribe({
               next: (message: string | ArrayBuffer | Blob) => {
                 try {
-                  if (typeof message === 'string' && message.startsWith('broadcast:')) {
-                    // Handle broadcast message
-                    const broadcastMessage = message.slice('broadcast:'.length);
-                    // Pass the connection object instead of just the ID
-                    handleBroadcastMessage(broadcastMessage, connection).catch(error => {
-                      console.error(`[WebSocketServer] Error in broadcast for ${connection.id}:`, error);
-                    });
-                  } else if (options.echo !== false) {
-                    // Echo the message back to the client
-                    connection.send(message).catch(error => {
-                      console.error(`[WebSocketServer] Error echoing message to ${connection.id}:`, error);
-                    });
-                  }
-                } catch (error) {
-                  console.error(`[WebSocketServer] Error processing message from ${connection.id}:`, error);
-                }
-              },
-              error: (error: unknown) => {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(`[WebSocketServer] Error in message stream for ${connection.id}:`, errorMessage);
-              },
-              complete: () => {
-                // Clean up when message stream completes
-                if (activeConnections.delete(connection.id)) {
-                  console.log(`[WebSocketServer] Connection completed: ${connection.id}`);
-                  console.log(`[WebSocketServer] Remaining connections: ${activeConnections.size}`);
-                }
-              }
-            });
-
-            // Handle connection close
-            connection.onClose.finally(() => {
-              if (activeConnections.delete(connection.id)) {
-                console.log(`[WebSocketServer] Connection closed: ${connection.id}`);
-                console.log(`[WebSocketServer] Remaining connections: ${activeConnections.size}`);
-                disconnections.emit(connection);
-                // No need to call unsubscribe as it's handled by the complete event
-              }
-            });
-
-            // Forward new connection to subscribers
-            connections.emit(connection);
-          });
-
-          // Set up error handler
-          if (wss) {
-            wss.on('error', (error: Error) => {
-              console.error('[WebSocketServer] Server error:', error);
-              errorEvents.emit(error);
-            });
-          }
-
-          // Set up close handler
-          if (wss) {
-            wss.on('close', () => {
-              console.log('[WebSocketServer] Server closed');
-              isClosed = true;
-              closeEvents.emit();
-            });
-          }
-
-          resolve();
-        } catch (error) {
-          console.error('[WebSocketServer] Failed to start server:', error);
-          reject(error);
         }
-      });
-    },
-    get server() {
-      return wss as unknown as HttpServer | HttpsServer | undefined;
-    },
+      }
+    });
 
     /**
      * Stream of new connections.
      */
     get connections() {
-      return connections;
+      return state.connections;
     },
 
     /**
      * Stream of disconnections.
      */
     get disconnections() {
-      return disconnections;
+      return state.disconnections;
     },
 
     /**
      * Map of active connections by connection ID.
      */
     get activeConnections() {
-      return new Map(activeConnections);
+      return new Map(state.activeConnections);
     },
 
     /**
@@ -461,10 +473,11 @@ export async function createWebSocketServer(
       if (isClosed) return 0;
       
       const clients = Array.from(activeConnections.values());
-      if (clients.length === 0) return 0;
-      
-      let successCount = 0;
-      
+          console.error('[WebSocket] Error sending message:', error);
+          throw error;
+        }
+      };
+
       // Prepare the message once for all clients
       const messageToSend = (() => {
         if (typeof message === 'string' || message instanceof ArrayBuffer || message instanceof Blob) {
@@ -485,7 +498,7 @@ export async function createWebSocketServer(
       for (const [id, client] of activeConnections.entries()) {
         try {
           if (client.isOpen) {
-            client.send(messageToSend);
+            sendMessage(messageToSend);
             successCount++;
           } else {
             console.log(`[WebSocketServer] Removing closed client ${id} during broadcast`);
