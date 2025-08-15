@@ -1,6 +1,6 @@
 {
   "name": "@salahor/backend-fastify",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Fastify plugin for Salahor - High-performance real-time capabilities for Fastify applications",
   "keywords": [
     "fastify",

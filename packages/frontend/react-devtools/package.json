@@ -1,6 +1,6 @@
 {
   "name": "@salahor/react-devtools",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "React DevTools for debugging Salahor event streams",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",

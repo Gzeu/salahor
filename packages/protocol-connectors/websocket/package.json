@@ -1,6 +1,6 @@
 {
   "name": "@salahor/websocket",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "WebSocket connector for Salahor - Zero-dependency universal connectors between Events, EventTargets and AsyncIterables",
   "keywords": [
     "websocket",

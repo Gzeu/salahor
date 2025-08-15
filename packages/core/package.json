@@ -1,6 +1,6 @@
 {
   "name": "@salahor/core",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Core utilities and types for Salahor ecosystem - Zero-dependency universal connectors between Events, EventTargets and AsyncIterables",
   "keywords": [
     "events",
