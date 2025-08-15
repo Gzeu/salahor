@@ -5,6 +5,12 @@ on:
     types: [opened, edited, labeled, unlabeled, milestoned, demilestoned, assigned, unassigned, closed, reopened]
   issue_comment:
     types: [created, edited, deleted]
+  schedule:
+    - cron: '0 0 * * *'  # Run once a day at midnight UTC
+
+env:
+  NODE_VERSION: 20.x
+  PNPM_VERSION: 8.x
 
 jobs:
   welcome-new-issue:
@@ -12,33 +18,61 @@ jobs:
     if: github.event_name == 'issues' && github.event.action == 'opened'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: true
+
+      - name: Setup pnpm
+        run: |
+          echo "PNPM_HOME=$(pnpm env PNPM_HOME)" >> $GITHUB_ENV
+          echo "$PNPM_HOME" >> $GITHUB_PATH
+          pnpm --version
+
       - name: Welcome message
         uses: actions/github-script@v7
         with:
           script: |
-            const issue = context.issue;
+            const { issue } = context;
             const issueAuthor = context.payload.issue.user.login;
             
             const welcomeMessage = `
-            👋 Hello @${issueAuthor}! Thank you for opening an issue!
+            👋 Hello @${issueAuthor}! Thank you for opening an issue in the Salahor project!
             
             We appreciate you taking the time to report this. Our team will review it as soon as possible.
             
-            Please make sure you've included:
+            **Before we proceed, please make sure you've included:**
             - A clear description of the issue
             - Steps to reproduce (if applicable)
             - Expected vs. actual behavior
             - Any relevant error messages or screenshots
             
             If this is a feature request, please describe the use case and expected behavior in detail.
+            
+            *This is an automated message. If you need help, please mention a maintainer.*
             `;
             
-            await github.rest.issues.createComment({
-              owner: issue.owner,
-              repo: issue.repo,
-              issue_number: issue.number,
-              body: welcomeMessage
-            });
+            try {
+              await github.rest.issues.createComment({
+                owner: issue.owner,
+                repo: issue.repo,
+                issue_number: issue.number,
+                body: welcomeMessage
+              });
+            } catch (error) {
+              console.error('Error posting welcome message:', error);
+              core.setFailed(error.message);
+            }
 
   add-needs-triage-label:
     name: Add Needs Triage Label
@@ -49,12 +83,17 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['needs-triage']
-            });
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['needs-triage']
+              });
+            } catch (error) {
+              console.error('Error adding label:', error);
+              core.setFailed(error.message);
+            }
 
   check-issue-template:
     name: Check Issue Template
@@ -68,24 +107,31 @@ jobs:
           script: |
             const issue = context.payload.issue;
             const minLength = 20; // Minimum characters for a meaningful issue
-            const isTooShort = issue.body.length < minLength;
+            const isTooShort = issue.body && issue.body.length < minLength;
             
             if (isTooShort) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: `👋 Thanks for opening an issue! It looks like your issue might be missing some details. Could you please provide more information about the problem you're experiencing?`
-              });
-              
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                labels: ['needs-more-info']
-              });
-              
-              core.setOutput('needs-more-info', 'true');
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `👋 Thanks for opening an issue! It looks like your issue might be missing some details. Could you please provide more information about the problem you're experiencing?`
+                });
+                
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ['needs-more-info']
+                });
+                
+                core.setOutput('needs-more-info', 'true');
+              } catch (error) {
+                console.error('Error processing issue:', error);
+                core.setFailed(error.message);
+              }
+            } else {
+              core.setOutput('needs-more-info', 'false');
             }
 
   stale-issues:
@@ -93,7 +139,8 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - name: Check for stale issues
+        uses: actions/stale@v9
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-stale: 30
@@ -101,5 +148,5 @@ jobs:
           stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs. Thank you for your contributions!'
           close-issue-message: 'This issue has been automatically closed due to inactivity. Please feel free to reopen if this is still relevant.'
           stale-issue-label: 'stale'
-          exempt-issue-labels: 'bug,enhancement,help wanted,good first issue,priority'
+          exempt-issue-labels: 'bug,enhancement,help wanted,good first issue,priority,blocked,wontfix'
           operations-per-run: 100

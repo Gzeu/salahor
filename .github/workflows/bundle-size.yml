@@ -29,6 +29,13 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
+          run_install: true
+
+      - name: Setup pnpm
+        run: |
+          echo "PNPM_HOME=$(pnpm env PNPM_HOME)" >> $GITHUB_ENV
+          echo "$PNPM_HOME" >> $GITHUB_PATH
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -42,44 +49,116 @@ jobs:
       - name: Run size-limit
         run: pnpm size-limit --json > .size-limit.json
 
-      - name: Upload size-limit results
-        uses: andresz1/size-limit-sarif-action@v1
+      - name: Upload size-limit results as artifact
+        uses: actions/upload-artifact@v4
         with:
-          filepath: .size-limit.json
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: bundle-size-report
+          path: .size-limit.json
+          if-no-files-found: warn
 
-      - name: Compare bundle size
-        uses: andresz1/size-limit-action@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          build_script: "build:size"
-          skip_step: install
-          use_rest_api: true
-
-      - name: Comment on PR
+      - name: Upload size-limit report
+        uses: actions/upload-artifact@v4
         if: github.event_name == 'pull_request'
-        uses: andresz1/size-limit-comment-action@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          show_total_bundle_size: true
-          show_unchanged: true
-          show_download_time: true
-          show_compressed: true
-          show_zipped: true
+          name: bundle-size-report-md
+          path: .size-limit.json
+          retention-days: 1
 
   check-size:
     name: Check Bundle Size
-    needs: analyze
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check size limit
-        uses: andresz1/size-limit-action@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          check: true
-          build_script: "build:size"
-          skip_step: install
-          use_rest_api: true
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: true
+
+      - name: Setup pnpm
+        run: |
+          echo "PNPM_HOME=$(pnpm env PNPM_HOME)" >> $GITHUB_ENV
+          echo "$PNPM_HOME" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm -r build
+
+      - name: Install size-limit
+        run: pnpm add -D @size-limit/preset-small-lib size-limit
+
+      - name: Check size limits
+        run: pnpm size-limit
+
+      - name: Get PR number
+        if: github.event_name == 'pull_request'
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            return pr.number;
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let report = '## 📦 Bundle Size Report\n\n';
+            
+            try {
+              const sizeData = JSON.parse(fs.readFileSync('.size-limit.json', 'utf8'));
+              
+              report += '| Package | Size | Gzipped |\n';
+              report += '|---------|------|---------|\n';
+              
+              sizeData.forEach(pkg => {
+                report += `| ${pkg.name} | ${(pkg.size / 1024).toFixed(2)} KB | ${(pkg.gzip / 1024).toFixed(2)} KB |\n`;
+              });
+              
+              report += '\n*Bundle sizes are approximate and may vary between builds.*';
+              
+              // Create or update comment
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ steps.pr.outputs.result }}
+              });
+              
+              const comment = comments.find(c => c.body.startsWith('## 📦 Bundle Size Report'));
+              
+              if (comment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                  body: report
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: ${{ steps.pr.outputs.result }},
+                  body: report
+                });
+              }
+            } catch (error) {
+              console.error('Error generating bundle size report:', error);
+              core.setFailed('Failed to generate bundle size report');
+            }
