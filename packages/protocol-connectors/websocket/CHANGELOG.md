@@ -1,5 +1,16 @@
 # @salahor/websocket
 
+## 4.0.0
+
+### Major Changes
+
+- .
+
+### Patch Changes
+
+- Updated dependencies
+  - @salahor/core@4.0.0
+
 ## 3.0.0
 
 ### Major Changes
