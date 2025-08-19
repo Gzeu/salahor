@@ -1,98 +1,32 @@
 import { createEventStream, EventStream } from '@salahor/core';
-import { Server as WSServer, ServerOptions as WSServerOptions, WebSocket as WS, WebSocket as WS_Type } from 'ws';
+import { Server as WSServer, ServerOptions as WSServerOptions, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import type { Server as HttpsServer } from 'https';
 import type { AddressInfo } from 'net';
 import type { WebSocketServer as IWebSocketServer, WebSocketServerOptions, WebSocketConnection } from './types';
 
-// Extend the global WebSocket interface to include Node.js specific methods
-declare global {
-  interface WebSocket extends WS_Type {
-    on(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    on(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
-    on(event: 'error', listener: (error: Error) => void): this;
-    off?(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    off?(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
-    off?(event: 'error', listener: (error: Error) => void): this;
-  }
-}
-
-// Extend the global WebSocket interface to include Node.js specific methods
-declare global {
-  interface WebSocket extends WS_Type {
-    on(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    on(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
-    on(event: 'error', listener: (error: Error) => void): this;
-    off?(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    off?(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
-    off?(event: 'error', listener: (error: Error) => void): this;
-  }
-}
-
-// Type definitions for WebSocket events
-interface CustomEvent {
-  type: string;
-  target?: EventTarget | null;
-  currentTarget?: EventTarget | null;
-  srcElement?: EventTarget | null;
-  eventPhase: number;
-  bubbles: boolean;
-  cancelable: boolean;
-  defaultPrevented: boolean;
-  timeStamp: number;
-  returnValue: any;
-  cancelBubble: boolean;
-  composed: boolean;
-  isTrusted: boolean;
-  NONE: number;
-  CAPTURING_PHASE: number;
-  AT_TARGET: number;
-  BUBBLING_PHASE: number;
-  preventDefault(): void;
-  stopPropagation(): void;
-  stopImmediatePropagation(): void;
-  initEvent(type: string, bubbles?: boolean, cancelable?: boolean): void;
-  composedPath(): EventTarget[];
-}
-
-interface CloseEvent extends CustomEvent {
+// Type definitions for browser-like events in Node.js
+type CloseEvent = {
   code: number;
   reason: string;
   wasClean: boolean;
-}
+};
 
 class ErrorEvent extends Error {
   constructor(type: string, eventInitDict?: { message?: string; error?: Error }) {
     super(eventInitDict?.message || eventInitDict?.error?.message);
     this.name = type;
   }
-  
-  // Add missing properties to match DOM Event interface
-  type: string = '';
-  target: EventTarget | null = null;
-  currentTarget: EventTarget | null = null;
-  eventPhase: number = 0;
-  bubbles: boolean = false;
-  cancelable: boolean = false;
-  defaultPrevented: boolean = false;
-  timeStamp: number = 0;
-  returnValue: any = undefined;
-  cancelBubble: boolean = false;
-  composed: boolean = false;
-  isTrusted: boolean = false;
-  srcElement: EventTarget | null = null;
-  
-  // Event phase constants
-  static NONE = 0;
-  static CAPTURING_PHASE = 1;
-  static AT_TARGET = 2;
-  static BUBBLING_PHASE = 3;
-  
-  // Event interface methods
-  preventDefault(): void {}
-  stopPropagation(): void {}
-  stopImmediatePropagation(): void {}
-  initEvent(type: string, bubbles?: boolean, cancelable?: boolean): void {}
+}
+
+interface ExtendedWebSocket extends WebSocket {
+  on(event: 'close', listener: (code: number, reason: Buffer) => void): this;
+  on(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
+  on(event: 'error', listener: (error: Error) => void): this;
+  off(event: 'close', listener: (code: number, reason: Buffer) => void): this;
+  off(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
+  off(event: 'error', listener: (error: Error) => void): this;
+  readyState: number;
 }
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -106,47 +40,18 @@ const devLogger = {
 // Helper function to create a promise that resolves when the WebSocket closes
 function createClosePromise(ws: WebSocket): Promise<CloseEvent> {
   return new Promise<CloseEvent>((resolve) => {
+    const extendedWs = ws as unknown as ExtendedWebSocket;
     const onClose = (code: number, reason: Buffer) => {
-      if (ws.off) {
-        ws.off('close', onClose);
+      if (extendedWs.off) {
+        extendedWs.off('close', onClose);
       }
-      
-      // Create a CloseEvent with all required properties
-      const closeEvent: CloseEvent = {
-        type: 'close',
-        code: code,
+      resolve({
+        code,
         reason: reason?.toString() || '',
-        wasClean: true,
-        // Add all required Event properties
-        target: ws,
-        currentTarget: ws,
-        srcElement: ws,
-        eventPhase: 0,
-        bubbles: false,
-        cancelable: false,
-        defaultPrevented: false,
-        timeStamp: Date.now(),
-        returnValue: undefined,
-        cancelBubble: false,
-        composed: false,
-        isTrusted: true,
-        // Event phase constants
-        NONE: 0,
-        CAPTURING_PHASE: 1,
-        AT_TARGET: 2,
-        BUBBLING_PHASE: 3,
-        // Event methods
-        preventDefault: () => {},
-        stopPropagation: () => {},
-        stopImmediatePropagation: () => {},
-        initEvent: () => {},
-        composedPath: () => []
-      };
-      
-      resolve(closeEvent);
+        wasClean: true
+      });
     };
-    
-    ws.on('close', onClose);
+    extendedWs.on('close', onClose);
   });
 }
 
@@ -178,36 +83,48 @@ function createWebSocketConnection(ws: WebSocket, request: WebSocketRequest = {}
   const closePromise = createClosePromise(ws);
   
   // Forward WebSocket events to our event streams
+  const extendedWs = ws as unknown as ExtendedWebSocket;
+  
   const onMessage = (data: string | Buffer | ArrayBuffer | Buffer[]) => {
     try {
       // Convert Buffer to ArrayBuffer if needed
-      let message: string | ArrayBuffer | Blob;
+      let messageData: string | ArrayBuffer | Blob;
+      
       if (Buffer.isBuffer(data)) {
-        message = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        messageData = data.buffer.slice(
+          data.byteOffset,
+          data.byteOffset + data.byteLength
+        ) as ArrayBuffer;
       } else if (Array.isArray(data)) {
-        // Convert array of buffers to a single ArrayBuffer
+        // Convert array of Buffers to a single ArrayBuffer
         const totalLength = data.reduce((acc, buf) => acc + buf.length, 0);
         const result = new Uint8Array(totalLength);
         let offset = 0;
+        
         for (const buf of data) {
-          result.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), offset);
-          offset += buf.length;
+          const bufData = new Uint8Array(
+            (buf as Buffer).buffer,
+            (buf as Buffer).byteOffset,
+            (buf as Buffer).byteLength
+          );
+          result.set(bufData, offset);
+          offset += bufData.byteLength;
         }
-        message = result.buffer;
+        
+        messageData = result.buffer;
       } else {
-        message = data;
+        messageData = data as string | ArrayBuffer | Blob;
       }
       
-      // Use next() instead of emit() on the EventStream
-      (messages as any).next(message);
+      messages.emit(messageData);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      (errorEvents as any).error(err);
+      errorEvents.emit(err);
     }
   };
   
   const onError = (error: Error) => {
-    (errorEvents as any).error(error);
+    errorEvents.emit(error);
   };
   
   const onClose = () => {
@@ -216,17 +133,17 @@ function createWebSocketConnection(ws: WebSocket, request: WebSocketRequest = {}
     errorEvents.complete();
     
     // Clean up event listeners
-    if (ws.off) {
-      ws.off('message', onMessage);
-      ws.off('error', onError);
-      ws.off('close', onClose);
+    if (extendedWs.off) {
+      extendedWs.off('message', onMessage);
+      extendedWs.off('error', onError);
+      extendedWs.off('close', onClose);
     }
   };
   
   // Set up event listeners
-  ws.on('message', onMessage);
-  ws.on('error', onError);
-  ws.on('close', onClose);
+  extendedWs.on('message', onMessage);
+  extendedWs.on('error', onError);
+  extendedWs.on('close', onClose);
   
   return {
     socket: ws,
@@ -259,16 +176,25 @@ function createWebSocketConnection(ws: WebSocket, request: WebSocketRequest = {}
 
 /**
  * Creates a new WebSocket server instance
- * @param options Configuration options for the WebSocket server
- * @returns A new WebSocket server instance
  */
-export const createWebSocketServer = (options: WebSocketServerOptions = {}): IWebSocketServer => {
-  let wsServer: WSServer | null = null;
+export function createWebSocketServer(
+  options: WebSocketServerOptions = {}
+): IWebSocketServer {
+  const { 
+    port = 8080,
+    host = '0.0.0.0',
+    server: httpServer,
+    WebSocketServer: WSServerImpl = WSServer,
+    wsOptions = {},
+    echo = true
+  } = options;
+
+  // Server state
+  let wsServer: InstanceType<typeof WSServer> | null = null;
   const connections = new Map<string, WebSocketConnection>();
   const connectionEvents = createEventStream<WebSocketConnection>();
-  const closeEvents = createEventStream<{ connection: WebSocketConnection; code: number; reason: string }>();
+  const closeEvents = createEventStream<void>();
   const errorEvents = createEventStream<Error>();
-  const errorEventsAsAny = errorEvents as any;
   let isServerClosed = true;
 
   // Helper functions
@@ -315,26 +241,27 @@ export const createWebSocketServer = (options: WebSocketServerOptions = {}): IWe
 
   // Set up WebSocket server event handlers
   wsServer.on('connection', (ws: WebSocket, request: WebSocketRequest) => {
-    try {
-      const connection = createWebSocketConnection(ws, request);
-      connections.set(connection.id, connection);
-      connectionEvents.emit(connection);
-      
-      // Handle connection close
-      connection.onClose.then(({ code, reason }) => {
-        connections.delete(connection.id);
-        closeEvents.emit({ connection, code, reason });
-      }).catch(error => {
-        errorEventsAsAny.next(error);
+    const connection = createWebSocketConnection(ws, request);
+    addConnection(connection);
+    
+    if (echo) {
+      // Echo messages back to the client
+      connection.messages.subscribe({
+        next: (data) => {
+          if (connection.isOpen) {
+            connection.send(data);
+          }
+        },
+        error: (err) => {
+          devLogger.error('Error in message handler:', err);
+        }
       });
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      errorEventsAsAny.next(err);
     }
   });
 
   wsServer.on('error', (error: Error) => {
-    errorEventsAsAny.next(error);
+    devLogger.error('WebSocket server error:', error);
+    errorEvents.emit(error);
   });
 
   wsServer.on('close', () => {
@@ -423,5 +350,3 @@ export const createWebSocketServer = (options: WebSocketServerOptions = {}): IWe
 
 // Export the main function
 export { createWebSocketServer };
-
-export default createWebSocketServer;

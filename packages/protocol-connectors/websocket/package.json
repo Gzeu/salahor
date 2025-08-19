@@ -59,9 +59,11 @@
     "provenance": true
   },
   "dependencies": {
-    "@salahor/core": "workspace:"
+    "@salahor/core": "workspace:^5.0.0",
+    "ws": "^8.0.0"
   },
   "peerDependencies": {
+    "@salahor/core": "^5.0.0",
     "ws": "^8.0.0"
   },
   "devDependencies": {
