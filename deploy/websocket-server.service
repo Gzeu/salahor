@@ -1,0 +1,19 @@
+[Unit]
+Description=Salahor WebSocket Server
+After=network.target
+
+[Service]
+User=node
+WorkingDirectory=/opt/salahor/websocket-server
+Environment=NODE_ENV=production
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=NODE_PORT=4002
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=websocket-server
+
+[Install]
+WantedBy=multi-user.target

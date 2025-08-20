@@ -189,33 +189,26 @@ export interface WebSocketServer {
   /**
    * The underlying HTTP/HTTPS server instance
    */
-  readonly server: any;
+  readonly server: any; // ws.Server type from 'ws' package
   
   /**
-   * Stream of new connections
+   * Event streams
    */
   readonly connections: EventStream<WebSocketConnection>;
-  
-  /**
-   * Map of active connections by connection ID
-   */
-  readonly activeConnections: Map<string, WebSocketConnection>;
-  
-  /**
-   * Event stream for server close events
-   */
   readonly onClose: EventStream<void>;
-  
-  /**
-   * Event stream for server errors
-   */
   readonly onError: EventStream<Error>;
   
   /**
-   * Start the WebSocket server
-   * @param port Optional port to listen on (defaults to the port from options)
+   * Connection management
+   */
+  readonly activeConnections: Map<string, WebSocketConnection>;
+  getConnection(id: string): WebSocketConnection | undefined;
+  
+  /**
+   * Server control
    */
   start(port?: number): Promise<void>;
+  close(code?: number, reason?: string): Promise<void>;
   
   /**
    * Close the server and all connections

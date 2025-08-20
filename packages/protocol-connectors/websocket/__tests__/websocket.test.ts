@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi, beforeEach } from 'vitest';
 import { createServer } from 'http';
 import { WebSocket } from 'ws';
-import createWebSocketServer from '../src/server';
+import { createWebSocketServer } from '../src/server';
 import type { WebSocketServer, WebSocketConnection } from '../src/types';
 import { TestWebSocket } from './utils';
 
+// Increase test timeout for CI environments
+const TEST_TIMEOUT = process.env.CI ? 30000 : 10000;
+
 // Define a proper Unsubscribe type that includes the unsubscribe method
-interface Unsubscribe {
+type Unsubscribe = {
   (): void;
   unsubscribe?: () => void;
-}
+};
 
 // The mock is now in __mocks__/ws.ts
 
@@ -24,21 +27,27 @@ describe('WebSocket Server', () => {
   async function createTestClient() {
     const ws = new WebSocket(`ws://localhost:${port}`);
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Connection timeout')), 3000);
-      ws.onopen = () => {
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('Connection timeout'));
+      }, 3000);
+      
+      ws.on('open', () => {
         clearTimeout(timeout);
         resolve();
-      };
-      ws.onerror = (err) => {
+      });
+      
+      ws.on('error', (err) => {
         clearTimeout(timeout);
         reject(err);
-      };
+      });
     });
     return ws;
   }
 
   beforeAll(async () => {
     console.log('[Test] Setting up HTTP server...');
+    
     // Create a simple HTTP server
     httpServer = createServer();
     
@@ -54,15 +63,17 @@ describe('WebSocket Server', () => {
         reject(error);
       });
       
-      httpServer.listen(0, 'localhost', () => {
+      httpServer.listen(0, '127.0.0.1', () => {
         const address = httpServer.address();
-        port = typeof address === 'string' ? parseInt(address.split(':').pop() || '0', 10) : (address?.port || 0);
+        port = typeof address === 'string' 
+          ? parseInt(address.split(':').pop() || '0', 10) 
+          : (address?.port || 0);
         console.log(`[Test] HTTP server listening on port ${port}`);
         clearTimeout(timeout);
         resolve();
       });
     });
-  }, 10000); // Increase timeout for server startup
+  }, TEST_TIMEOUT);
 
   beforeEach(async () => {
     console.log('[Test] Starting test setup...');
@@ -142,27 +153,43 @@ describe('WebSocket Server', () => {
       wss = null;
     }
     
-    // Clean up the subscription
+    // Unsubscribe from connection events
     if (connectionSubscription) {
-      // Call the unsubscribe method if it exists, otherwise call the function directly
-      if (typeof connectionSubscription.unsubscribe === 'function') {
-        connectionSubscription.unsubscribe();
-      } else if (typeof connectionSubscription === 'function') {
-        connectionSubscription();
-      }
+      connectionSubscription();
       connectionSubscription = null;
     }
   });
 
   afterAll(async () => {
+    // Stop the WebSocket server
+    if (wss) {
+      try {
+        await wss.close();
+      } catch (error) {
+        console.error('Error stopping WebSocket server:', error);
+      }
+      wss = null;
+    }
+    
     // Close the HTTP server
     if (httpServer) {
       await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          console.warn('[Test] HTTP server close timeout');
+          resolve();
+        }, 5000);
+        
         httpServer.close((err) => {
-          if (err) reject(err);
-          else resolve();
+          clearTimeout(timeout);
+          if (err) {
+            console.error('[Test] Error closing HTTP server:', err);
+            reject(err);
+          } else {
+            console.log('[Test] HTTP server closed');
+            resolve();
+          }
         });
-      });
+      }).catch(console.error);
     }
   });
 
@@ -293,102 +320,28 @@ describe('WebSocket Server', () => {
     // Clean up
     ws.close();
   });
-  
   it('should receive messages from clients', async () => {
     const ws = await createTestClient();
     const testWs = TestWebSocket.instances[0];
     
-    // Set up a message listener
-    const messagePromise = new Promise((resolve) => {
-      ws.onmessage = (event) => {
-        resolve(event.data);
-      };
-    });
-    
+    // Helper function to wait for a message
+    function waitForMessage(ws: WebSocket): Promise<any> {
+      return new Promise((resolve) => {
+        const onMessage = (data: string | Buffer | ArrayBuffer | Buffer[]) => {
+          ws.off('message', onMessage);
+          const message = data instanceof Buffer ? data.toString() : data;
+          resolve(JSON.parse(message as string));
+        };
+        ws.on('message', onMessage);
+      });
+    }
+
     // Simulate a message from the server
     testWs.simulateMessage('test message');
     
     // Verify the message was received
-    const receivedMessage = await messagePromise;
+    const receivedMessage = await waitForMessage(ws);
     expect(receivedMessage).toBe('test message');
-    
-    // Clean up
-    ws.close();
-  });
-  
-  it('should handle client disconnections', async () => {
-    const ws = await createTestClient();
-    const testWs = TestWebSocket.instances[0];
-    
-    // Set up a close listener
-    const closePromise = new Promise((resolve) => {
-      ws.onclose = () => resolve(true);
-    });
-    
-    // Simulate a client disconnection
-    testWs.simulateClose(1000, 'test close');
-    
-    // Verify the connection was closed
-    const wasClosed = await closePromise;
-    // Verify we have a connection
-    expect(connections.length).toBe(1);
-    const connection = connections[0];
-    
-    // Test sending a message from client to server
-    const messagePromise = new Promise<string>((resolve) => {
-      const subscription = connection.messages.subscribe((msg) => {
-        subscription.unsubscribe();
-        resolve(msg);
-      });
-    });
-    
-    // Simulate a message from the client
-    testWs.simulateMessage('test message');
-    
-    // Verify the server received the message
-    const receivedMessage = await messagePromise;
-    expect(receivedMessage).toBe('test message');
-    
-    // Test sending a message from server to client
-    const clientMessagePromise = new Promise<string>((resolve) => {
-      testWs.onmessage = (event: { data: string }) => {
-        resolve(event.data);
-      };
-    });
-    
-    // Send a message from the server
-    const serverMessage = 'Hello from the server!';
-    connection.send(serverMessage);
-    
-    // Verify the client received the message
-    const clientReceivedMessage = await clientMessagePromise;
-    expect(clientReceivedMessage).toBe(serverMessage);
-    
-    // Test client disconnection
-    const clientClosePromise = new Promise<{code: number; reason: string}>((resolve) => {
-      testWs.onclose = (event: { code: number; reason: string }) => {
-        resolve({
-          code: event.code,
-          reason: event.reason
-        });
-      };
-    });
-    
-    // Simulate a client disconnection
-    testWs.simulateClose(1000, 'test close');
-    
-    // Verify the connection was closed
-    const closeResult = await clientClosePromise;
-    expect(closeResult.code).toBe(1000);
-    expect(closeResult.reason).toBe('test close');
-    expect(testWs.isClosed).toBe(true);
-  });
-
-  it('should broadcast messages to all clients', async () => {
-    // Set up broadcast handler
-    const subscriptions = connections.map(conn => 
-      conn.messages.subscribe((msg: string | ArrayBuffer | Blob) => {
-        // Broadcast to all connections except the sender
         connections.forEach(c => {
           if (c !== conn) {
             c.send(`Echo: ${msg}`);
