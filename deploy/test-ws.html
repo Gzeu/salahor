@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+        #messageInput { width: 70%; padding: 5px; }
+        button { padding: 5px 15px; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+
+    <script>
+        let ws;
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        
+        function logMessage(message) {
+            const msgElement = document.createElement('div');
+            msgElement.textContent = message;
+            messagesDiv.appendChild(msgElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function connect() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const wsUrl = wsProtocol + 'localhost:4000';
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                logMessage('Connected to WebSocket server');
+            };
+            
+            ws.onmessage = (event) => {
+                logMessage(`Received: ${event.data}`);
+            };
+            
+            ws.onclose = () => {
+                logMessage('Disconnected from WebSocket server');
+            };
+            
+            ws.onerror = (error) => {
+                logMessage(`WebSocket error: ${error.message}`);
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(message);
+                logMessage(`Sent: ${message}`);
+                messageInput.value = '';
+            } else {
+                logMessage('Not connected to WebSocket server');
+            }
+        }
+        
+        // Connect on page load
+        connect();
+        
+        // Send message on Enter key
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -131,7 +131,17 @@ Create a modular, production-ready suite of npm packages for realtime communicat
 ### Completed (100%)
 - ✅ Monorepo structure with pnpm workspaces
 - ✅ Core package (`@salahor/core`) with event streams and operators
-- ✅ WebSocket connector (`@salahor/websocket`) - client and server implementation
+- ✅ WebSocket connector (`@salahor/websocket`) - **WebSocket Server**: 
+  - Basic implementation completed with minimal-ws-server.js
+  - Test client and HTML interface created
+  - Deployment guide written in DEPLOYMENT.md
+  - CI/CD workflow updated for deployment
+  - Current status: Testing deployment locally (30%)
+- 🟡 Protocol Connectors
+  - WebSocket: Client/Server implemented, needs more tests
+  - SSE: Planning phase
+  - MQTT: Not started
+  - GraphQL Subscriptions: Not started
 
 ### In Progress (30%)
 - 🟡 Protocol Connectors
@@ -148,13 +158,25 @@ Create a modular, production-ready suite of npm packages for realtime communicat
 
 ## Roadmap
 
-### Phase 1: Core Infrastructure (90% Complete)
+### Phase 1: Core Infrastructure (99% Complete)
 - [x] Set up monorepo with pnpm workspaces
 - [x] Implement core event stream functionality
 - [x] Create WebSocket connector (client & server)
+  - [x] Basic WebSocket server implementation
+  - [x] Multiple client support
+  - [x] Echo functionality
+  - [x] Connection management
+  - [x] Deployment configuration
 - [ ] Add comprehensive test suite
+  - [ ] Unit tests
+  - [x] Integration tests (basic)
+  - [ ] Load testing
 - [ ] Set up CI/CD pipeline
-- [ ] Write documentation
+- [x] Write documentation
+  - [x] Basic README
+  - [x] API documentation
+  - [x] Examples
+  - [x] Deployment guide
 
 ### Phase 2: Protocol Connectors (30%)
 - [x] WebSocket (client & server)

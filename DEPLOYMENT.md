@@ -1,14 +1,26 @@
-# Deployment Guide for WebSocket Server
+# 🚀 Salahor WebSocket Server Deployment Guide
 
 ## 📋 Pre-requisites
 
 - Node.js 18 or higher
-- pnpm 7 or higher
+- pnpm 8 or higher
 - Git
-- PM2 (recommended for production) or another process manager
-- Nginx (recommended for production)
+- Process Manager (PM2 recommended for production)
+- Reverse Proxy (Nginx, Caddy, or similar recommended for production)
 
-## 🚀 Deployment Steps
+## 🏗️ Project Structure
+
+```
+deploy/
+├── server.js           # Main WebSocket server
+├── combined-server.js  # Combined HTTP + WebSocket server
+├── debug-server.js     # Debug server with additional logging
+├── test-client.js      # Test client for WebSocket
+├── test-connection.js  # Connection test script
+└── test.html          # Web client test page
+```
+
+## 🚀 Quick Start
 
 ### 1. Clone the Repository
 
@@ -25,29 +37,185 @@ npm install -g pnpm
 
 # Install project dependencies
 pnpm install
-```
 
-### 3. Build the Project
-
-```bash
 # Build all packages
 pnpm build
+```
 
-# Or build only the WebSocket server
-cd packages/protocol-connectors/websocket
+### 3. Configure Environment
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+### 4. Start the Server
+
+#### Development Mode
+
+```bash
+# Start the development server with hot-reload
+cd deploy
+pnpm dev
+```
+
+#### Production Mode
+
+```bash
+# Build the project first
 pnpm build
+
+# Start the production server
+cd deploy
+pnpm start
 ```
 
-### 4. Configure Environment Variables
+## ⚙️ Configuration
 
-Create a `.env` file in the project root with the following variables:
+### Environment Variables
 
-```env
-NODE_ENV=production
-PORT=3000
-WS_PATH=/ws
-# Add any other environment-specific variables here
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NODE_ENV` | `development` | Runtime environment (`development`, `production`) |
+| `PORT` | `3000` | Port to listen on |
+| `HOST` | `0.0.0.0` | Host to bind to |
+| `WS_PATH` | `/` | WebSocket endpoint path |
+| `LOG_LEVEL` | `info` | Logging level (`error`, `warn`, `info`, `debug`, `trace`) |
+| `MAX_PAYLOAD` | `1048576` | Maximum message size in bytes |
+| `CORS_ORIGIN` | `*` | Allowed CORS origins |
+
+### PM2 Configuration (Recommended for Production)
+
+Create `ecosystem.config.js` in the project root:
+
+```javascript
+module.exports = {
+  apps: [{
+    name: 'salahor-ws',
+    script: './deploy/server.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    }
+  }]
+};
 ```
+
+Start with PM2:
+
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Start application
+pm2 start ecosystem.config.js
+
+# Enable startup on system boot
+pm2 startup
+pm2 save
+```
+
+## 🔄 Reverse Proxy Setup (Nginx)
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location /ws {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        root /path/to/your/static/files;
+        try_files $uri /index.html;
+    }
+}
+```
+
+## 🧪 Testing
+
+### Test WebSocket Server
+
+```bash
+# Start test client
+cd deploy
+node test-client.js
+
+# Or test HTTP server
+node test-server.js
+```
+
+### Test Web Client
+
+1. Start the server
+2. Open `http://localhost:3000/test.html` in your browser
+
+## 📊 Monitoring
+
+### Health Check
+
+```bash
+curl http://localhost:3000/health
+```
+
+### PM2 Monitoring
+
+```bash
+# Show logs
+pm2 logs
+
+# Show metrics
+pm2 monit
+
+# Show process list
+pm2 list
+```
+
+## 🔄 Deployment Workflow
+
+1. **Development**
+   - Use `pnpm dev` for development with hot-reload
+   - Test using the test client and web interface
+
+2. **Staging**
+   - Deploy to staging environment
+   - Run integration tests
+   - Perform load testing
+
+3. **Production**
+   - Deploy using PM2
+   - Monitor logs and metrics
+   - Set up alerts for critical errors
+
+## 🔒 Security Considerations
+
+- Always use HTTPS in production
+- Implement authentication/authorization
+- Rate limit WebSocket connections
+- Validate and sanitize all incoming messages
+- Keep dependencies updated
+- Use environment variables for sensitive data
+
+## 📚 Additional Resources
+
+- [WebSocket Protocol](https://tools.ietf.org/html/rfc6455)
+- [PM2 Documentation](https://pm2.keymetrics.io/docs/usage/quick-start/)
+- [Nginx as WebSocket Proxy](https://www.nginx.com/blog/websocket-nginx/)
+- [WebSocket Best Practices](https://blog.stanko.io/websocket-best-practices-b0d4f5226aa0)
 
 ### 5. Start the Server
 
