@@ -116,6 +116,10 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        node-version: [20.x]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -125,7 +129,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
       
@@ -136,6 +140,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
+      - name: Build packages
+        run: pnpm build
+
       - name: Create and publish versions
         uses: changesets/action@v1
         with:
@@ -147,3 +154,115 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN || '' }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || '' }}
+
+  deploy:
+    name: Deploy WebSocket Server
+    needs: release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deployment
+          cp -r deploy/* deployment/
+          cp package.json deployment/
+          cp pnpm-lock.yaml deployment/
+          cp -r node_modules deployment/
+          tar -czf deployment.tar.gz deployment
+
+      - name: Deploy to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deployment.tar.gz"
+          target: "/tmp"
+
+      - name: Run deployment script on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /tmp
+            tar -xzf deployment.tar.gz
+            cd deployment
+            
+            # Install production dependencies
+            pnpm install --prod --frozen-lockfile
+            
+            # Create deployment directory
+            DEPLOY_DIR="/opt/salahor/websocket-$(date +%Y%m%d%H%M%S)"
+            sudo mkdir -p $DEPLOY_DIR
+            
+            # Copy files
+            sudo cp -r . $DEPLOY_DIR
+            
+            # Create symlink to current deployment
+            CURRENT_LINK="/opt/salahor/current"
+            sudo rm -f $CURRENT_LINK
+            sudo ln -s $DEPLOY_DIR $CURRENT_LINK
+            
+            # Install systemd service file
+            sudo cp salahor-websocket.service /etc/systemd/system/
+
+            # Restart service if running, otherwise start it
+            if systemctl is-active --quiet salahor-websocket; then
+              sudo systemctl restart salahor-websocket
+            else
+              sudo systemctl daemon-reload
+              sudo systemctl enable salahor-websocket
+              sudo systemctl start salahor-websocket
+            fi
+
+            # Cleanup old deployments (keep last 5)
+            if [ -d "/opt/salahor" ]; then
+              ls -dt /opt/salahor/websocket-* 2>/dev/null | tail -n +6 | xargs -r sudo rm -rf
+            fi
+
+            # Verify service status
+            if ! sudo systemctl is-active --quiet salahor-websocket; then
+              echo "Error: WebSocket service is not running"
+              exit 1
+            fi
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed successfully!"
+          echo "WebSocket server should be running at: ws://${{ secrets.SERVER_HOST }}:3000"

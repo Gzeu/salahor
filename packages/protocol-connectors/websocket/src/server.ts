@@ -17,18 +17,6 @@ declare global {
   }
 }
 
-// Extend the global WebSocket interface to include Node.js specific methods
-declare global {
-  interface WebSocket extends WS_Type {
-    on(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    on(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
-    on(event: 'error', listener: (error: Error) => void): this;
-    off?(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    off?(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
-    off?(event: 'error', listener: (error: Error) => void): this;
-  }
-}
-
 // Type definitions for WebSocket events
 interface CustomEvent {
   type: string;
@@ -262,7 +250,7 @@ function createWebSocketConnection(ws: WebSocket, request: WebSocketRequest = {}
  * @param options Configuration options for the WebSocket server
  * @returns A new WebSocket server instance
  */
-export const createWebSocketServer = (options: WebSocketServerOptions = {}): IWebSocketServer => {
+export function createWebSocketServer(options: WebSocketServerOptions = {}): IWebSocketServer {
   let wsServer: WSServer | null = null;
   const connections = new Map<string, WebSocketConnection>();
   const connectionEvents = createEventStream<WebSocketConnection>();
@@ -317,12 +305,11 @@ export const createWebSocketServer = (options: WebSocketServerOptions = {}): IWe
   wsServer.on('connection', (ws: WebSocket, request: WebSocketRequest) => {
     try {
       const connection = createWebSocketConnection(ws, request);
-      connections.set(connection.id, connection);
-      connectionEvents.emit(connection);
+      addConnection(connection);
       
       // Handle connection close
       connection.onClose.then(({ code, reason }) => {
-        connections.delete(connection.id);
+        removeConnection(connection.id);
         closeEvents.emit({ connection, code, reason });
       }).catch(error => {
         errorEventsAsAny.next(error);
@@ -421,7 +408,3 @@ export const createWebSocketServer = (options: WebSocketServerOptions = {}): IWe
   };
 }
 
-// Export the main function
-export { createWebSocketServer };
-
-export default createWebSocketServer;
