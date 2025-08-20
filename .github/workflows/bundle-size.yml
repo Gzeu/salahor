@@ -25,13 +25,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: true
-
-      - name: Setup pnpm
+      - name: Setup pnpm environment
         run: |
           echo "PNPM_HOME=$(pnpm env PNPM_HOME)" >> $GITHUB_ENV
           echo "$PNPM_HOME" >> $GITHUB_PATH
