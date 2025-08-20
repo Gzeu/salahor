@@ -23,10 +23,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Verify pnpm
-        run: pnpm --version
+          cache: 'npm'
+          
+      - name: Install pnpm
+        run: |
+          npm install -g pnpm@8
+          echo "PNPM_HOME=$(pnpm env PNPM_HOME)" >> $GITHUB_ENV
+          echo "$PNPM_HOME" >> $GITHUB_PATH
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
