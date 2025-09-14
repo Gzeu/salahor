@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #output { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin: 20px 0; }
+        .message { margin: 5px 0; padding: 5px; background: #f0f0f0; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+    <div>
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        const messageInput = document.getElementById('messageInput');
+        let ws;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 2000; // 2 seconds
+
+        function connectWebSocket() {
+            log('🔌 Connecting to WebSocket server...');
+            ws = new WebSocket('ws://localhost:4000');
+
+            ws.onopen = () => {
+                log('✅ Connected to WebSocket server');
+                reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+            };
+
+            ws.onmessage = (event) => {
+                log(`📨 Received: ${event.data}`);
+            };
+
+            ws.onclose = () => {
+                log('❌ Disconnected from WebSocket server');
+                attemptReconnect();
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                log(`❌ WebSocket error: ${error.message || 'Unknown error'}`);
+            };
+        }
+
+        function attemptReconnect() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                log(`♻️ Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                setTimeout(connectWebSocket, reconnectDelay);
+            } else {
+                log('❌ Max reconnection attempts reached. Please refresh the page to try again.');
+            }
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const messageObj = {
+                    type: 'chat',
+                    content: message,
+                    timestamp: new Date().toISOString()
+                };
+                ws.send(JSON.stringify(messageObj));
+                log(`📤 You: ${message}`);
+                messageInput.value = '';
+            } else {
+                log('⚠️ Not connected to WebSocket server');
+            }
+        }
+
+        function log(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(messageElement);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Initialize WebSocket connection when page loads
+        window.addEventListener('load', () => {
+            connectWebSocket();
+            
+            // Allow sending message with Enter key
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+                messageInput.value = '';
+            } else {
+                log('Not connected. Trying to reconnect...');
+                connectWebSocket();
+            }
+        }
+
+        // Connect when the page loads
+        window.onload = connectWebSocket;
+        
+        // Allow sending with Enter key
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #output { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+        #input { width: 70%; padding: 5px; }
+        button { padding: 5px 15px; margin: 5px; }
+        .connected { color: green; }
+        .disconnected { color: red; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+    <div>
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+        <span id="status" class="disconnected">Disconnected</span>
+    </div>
+    <div id="output"></div>
+    <div>
+        <input type="text" id="input" placeholder="Type a message..." disabled>
+        <button id="sendBtn" disabled>Send</button>
+    </div>
+
+    <script>
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        const statusEl = document.getElementById('status');
+        
+        let socket = null;
+        
+        function log(message) {
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(p);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function updateUI(connected) {
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            sendBtn.disabled = !connected;
+            input.disabled = !connected;
+            statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            statusEl.className = connected ? 'connected' : 'disconnected';
+        }
+        
+        function connect() {
+            if (socket) return;
+            
+            const wsUrl = 'ws://localhost:4000';
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = () => {
+                log('Connected to WebSocket server');
+                updateUI(true);
+            };
+            
+            socket.onmessage = (event) => {
+                log(`Received: ${event.data}`);
+            };
+            
+            socket.onclose = () => {
+                log('Disconnected from server');
+                socket = null;
+                updateUI(false);
+            };
+            
+            socket.onerror = (error) => {
+                log(`Error: ${error.message || 'Unknown error'}`);
+            };
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            updateUI(false);
+        }
+        
+        function sendMessage() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                log('Not connected to server');
+                return;
+            }
+            
+            const message = input.value.trim();
+            if (message) {
+                socket.send(JSON.stringify({
+                    type: 'message',
+                    content: message,
+                    timestamp: new Date().toISOString()
+                }));
+                log(`Sent: ${message}`);
+                input.value = '';
+            }
+        }
+        
+        // Event listeners
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendBtn.addEventListener('click', sendMessage);
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Initial UI state
+        updateUI(false);
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "outDir": "./dist",
+    "outDir": "dist",
     "rootDir": "./src",
     "noEmit": false,
     "declaration": true,
@@ -13,21 +13,21 @@
     "moduleResolution": "node",
     "module": "esnext",
     "target": "es2020",
-    "lib": ["es2020"],
+    "lib": ["es2020", "dom"],
     "baseUrl": ".",
     "paths": {
       "@salahor/core": ["./src/index.ts"]
     },
     "types": ["node"],
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src"],
   "exclude": [
-    "node_modules",
-    "dist",
-    "**/__tests__/**/*",
+    "**/__tests__",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "**/node_modules"
   ]
 }

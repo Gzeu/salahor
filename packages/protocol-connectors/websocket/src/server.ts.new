@@ -1,0 +1,352 @@
+import { createEventStream, EventStream } from '@salahor/core';
+import { Server as WSServer, ServerOptions as WSServerOptions, WebSocket } from 'ws';
+import type { Server as HttpServer } from 'http';
+import type { Server as HttpsServer } from 'https';
+import type { AddressInfo } from 'net';
+import type { WebSocketServer as IWebSocketServer, WebSocketServerOptions, WebSocketConnection } from './types';
+
+// Type definitions for browser-like events in Node.js
+type CloseEvent = {
+  code: number;
+  reason: string;
+  wasClean: boolean;
+};
+
+class ErrorEvent extends Error {
+  constructor(type: string, eventInitDict?: { message?: string; error?: Error }) {
+    super(eventInitDict?.message || eventInitDict?.error?.message);
+    this.name = type;
+  }
+}
+
+interface ExtendedWebSocket extends WebSocket {
+  on(event: 'close', listener: (code: number, reason: Buffer) => void): this;
+  on(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
+  on(event: 'error', listener: (error: Error) => void): this;
+  off(event: 'close', listener: (code: number, reason: Buffer) => void): this;
+  off(event: 'message', listener: (data: string | Buffer | ArrayBuffer | Buffer[]) => void): this;
+  off(event: 'error', listener: (error: Error) => void): this;
+  readyState: number;
+}
+
+const isDev = process.env.NODE_ENV === 'development';
+
+// Simple logger for development
+const devLogger = {
+  log: (...args: any[]) => isDev && console.log('[WebSocket]', ...args),
+  error: (...args: any[]) => isDev && console.error('[WebSocket]', ...args)
+};
+
+// Helper function to create a promise that resolves when the WebSocket closes
+function createClosePromise(ws: WebSocket): Promise<CloseEvent> {
+  return new Promise<CloseEvent>((resolve) => {
+    const extendedWs = ws as unknown as ExtendedWebSocket;
+    const onClose = (code: number, reason: Buffer) => {
+      if (extendedWs.off) {
+        extendedWs.off('close', onClose);
+      }
+      resolve({
+        code,
+        reason: reason?.toString() || '',
+        wasClean: true
+      });
+    };
+    extendedWs.on('close', onClose);
+  });
+}
+
+/**
+ * Request object passed to WebSocket server connection handler
+ */
+interface WebSocketRequest {
+  socket?: {
+    remoteAddress?: string;
+  };
+  headers?: {
+    [key: string]: string | string[] | undefined;
+  };
+  url?: string;
+}
+
+/**
+ * Creates a WebSocket connection wrapper
+ */
+function createWebSocketConnection(ws: WebSocket, request: WebSocketRequest = {}): WebSocketConnection {
+  // Generate a unique ID for this connection
+  const id = Math.random().toString(36).substring(2, 15);
+  const remoteAddress = (request.socket?.remoteAddress as string) || 'unknown';
+  const messages = createEventStream<string | ArrayBuffer | Blob>();
+  const errorEvents = createEventStream<Error>();
+  let isOpen = true;
+  
+  // Create a promise that resolves when the connection closes
+  const closePromise = createClosePromise(ws);
+  
+  // Forward WebSocket events to our event streams
+  const extendedWs = ws as unknown as ExtendedWebSocket;
+  
+  const onMessage = (data: string | Buffer | ArrayBuffer | Buffer[]) => {
+    try {
+      // Convert Buffer to ArrayBuffer if needed
+      let messageData: string | ArrayBuffer | Blob;
+      
+      if (Buffer.isBuffer(data)) {
+        messageData = data.buffer.slice(
+          data.byteOffset,
+          data.byteOffset + data.byteLength
+        ) as ArrayBuffer;
+      } else if (Array.isArray(data)) {
+        // Convert array of Buffers to a single ArrayBuffer
+        const totalLength = data.reduce((acc, buf) => acc + buf.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        
+        for (const buf of data) {
+          const bufData = new Uint8Array(
+            (buf as Buffer).buffer,
+            (buf as Buffer).byteOffset,
+            (buf as Buffer).byteLength
+          );
+          result.set(bufData, offset);
+          offset += bufData.byteLength;
+        }
+        
+        messageData = result.buffer;
+      } else {
+        messageData = data as string | ArrayBuffer | Blob;
+      }
+      
+      messages.emit(messageData);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errorEvents.emit(err);
+    }
+  };
+  
+  const onError = (error: Error) => {
+    errorEvents.emit(error);
+  };
+  
+  const onClose = () => {
+    isOpen = false;
+    messages.complete();
+    errorEvents.complete();
+    
+    // Clean up event listeners
+    if (extendedWs.off) {
+      extendedWs.off('message', onMessage);
+      extendedWs.off('error', onError);
+      extendedWs.off('close', onClose);
+    }
+  };
+  
+  // Set up event listeners
+  extendedWs.on('message', onMessage);
+  extendedWs.on('error', onError);
+  extendedWs.on('close', onClose);
+  
+  return {
+    socket: ws,
+    id,
+    remoteAddress,
+    messages,
+    get isOpen() { return isOpen; },
+    get readyState() { return ws.readyState; },
+    get onClose() { return closePromise; },
+    onError: errorEvents,
+    
+    send(data: string | ArrayBuffer | Blob): void {
+      if (!isOpen) return;
+      
+      try {
+        ws.send(data as any);
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        errorEvents.emit(err);
+      }
+    },
+    
+    close(code?: number, reason?: string): void {
+      if (!isOpen) return;
+      isOpen = false;
+      ws.close(code, reason);
+    }
+  };
+}
+
+/**
+ * Creates a new WebSocket server instance
+ */
+export function createWebSocketServer(
+  options: WebSocketServerOptions = {}
+): IWebSocketServer {
+  const { 
+    port = 8080,
+    host = '0.0.0.0',
+    server: httpServer,
+    WebSocketServer: WSServerImpl = WSServer,
+    wsOptions = {},
+    echo = true
+  } = options;
+
+  // Server state
+  let wsServer: InstanceType<typeof WSServer> | null = null;
+  const connections = new Map<string, WebSocketConnection>();
+  const connectionEvents = createEventStream<WebSocketConnection>();
+  const closeEvents = createEventStream<void>();
+  const errorEvents = createEventStream<Error>();
+  let isServerClosed = true;
+
+  // Helper functions
+  const addConnection = (conn: WebSocketConnection) => {
+    connections.set(conn.id, conn);
+    connectionEvents.emit(conn);
+    
+    // Set up cleanup on connection close
+    conn.onClose.then(() => {
+      connections.delete(conn.id);
+    });
+  };
+
+  const removeConnection = (connId: string) => {
+    connections.delete(connId);
+  };
+
+  const closeAllConnections = async (code?: number, reason?: string) => {
+    await Promise.all(
+      Array.from(connections.values()).map(conn => 
+        new Promise<void>(resolve => {
+          conn.close(code, reason);
+          conn.onClose.then(() => resolve());
+        })
+      )
+    );
+  };
+
+  // Create the WebSocket server
+  if (httpServer) {
+    // Attach to existing HTTP server
+    wsServer = new WSServerImpl({
+      server: httpServer,
+      ...wsOptions
+    });
+  } else {
+    // Create a new HTTP server
+    wsServer = new WSServerImpl({
+      port,
+      host,
+      ...wsOptions
+    });
+  }
+
+  // Set up WebSocket server event handlers
+  wsServer.on('connection', (ws: WebSocket, request: WebSocketRequest) => {
+    const connection = createWebSocketConnection(ws, request);
+    addConnection(connection);
+    
+    if (echo) {
+      // Echo messages back to the client
+      connection.messages.subscribe({
+        next: (data) => {
+          if (connection.isOpen) {
+            connection.send(data);
+          }
+        },
+        error: (err) => {
+          devLogger.error('Error in message handler:', err);
+        }
+      });
+    }
+  });
+
+  wsServer.on('error', (error: Error) => {
+    devLogger.error('WebSocket server error:', error);
+    errorEvents.emit(error);
+  });
+
+  wsServer.on('close', () => {
+    isServerClosed = true;
+    closeEvents.emit(undefined);
+  });
+
+  isServerClosed = false;
+
+  // Return the WebSocket server interface
+  return {
+    get server() { return wsServer; },
+    get connections() { return connectionEvents; },
+    get onClose() { return closeEvents; },
+    get onError() { return errorEvents; },
+    
+    get activeConnections() {
+      return new Map(connections);
+    },
+    
+    getConnection(id: string) {
+      return connections.get(id);
+    },
+    
+    broadcast(data: string | ArrayBuffer | Blob, excludeId?: string) {
+      connections.forEach((conn, id) => {
+        if (!excludeId || id !== excludeId) {
+          try {
+            conn.send(data);
+          } catch (error) {
+            devLogger.error(`Error broadcasting to connection ${id}:`, error);
+          }
+        }
+      });
+    },
+    
+    async start(serverPort: number = port): Promise<void> {
+      if (!isServerClosed) {
+        return;
+      }
+      
+      if (httpServer) {
+        // Already started by the HTTP server
+        return;
+      }
+      
+      return new Promise<void>((resolve, reject) => {
+        if (!wsServer) {
+          reject(new Error('WebSocket server not initialized'));
+          return;
+        }
+        
+        wsServer.once('listening', () => {
+          devLogger.log(`WebSocket server started on port ${serverPort}`);
+          resolve();
+        });
+        
+        wsServer.once('error', (error: Error) => {
+          reject(error);
+        });
+      });
+    },
+    
+    async stop(): Promise<void> {
+      if (!wsServer || isServerClosed) {
+        return;
+      }
+      
+      await closeAllConnections(1000, 'Server shutting down');
+      
+      return new Promise<void>((resolve) => {
+        if (!wsServer) {
+          resolve();
+          return;
+        }
+        
+        wsServer.close(() => {
+          wsServer = null;
+          isServerClosed = true;
+          resolve();
+        });
+      });
+    }
+  };
+}
+
+// Export the main function
+export { createWebSocketServer };

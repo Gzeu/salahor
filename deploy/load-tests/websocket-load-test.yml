@@ -1,0 +1,54 @@
+config:
+  target: "ws://localhost:4002"
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: Warm up
+    - duration: 120
+      arrivalRate: 20
+      rampTo: 50
+      name: Ramp up load
+    - duration: 300
+      arrivalRate: 50
+      name: Sustained load
+    - duration: 30
+      arrivalRate: 5
+      name: Ramp down
+  engines:
+    websocket:
+      origin: "http://localhost:4002"
+      headers:
+        User-Agent: "Artillery WebSocket Load Test"
+      subProtocols: []
+
+scenarios:
+  - name: Connect and send messages
+    engine: websocket
+    flow:
+      - think: 1
+      - function: "generateMessage"
+      - send: "{{ message }}"
+      - think: 1
+      - function: "validateResponse"
+      - think: 2
+      - close: true
+
+functions: |
+  function generateMessage(userContext, events, done) {
+    const message = `Test message at ${new Date().toISOString()}`;
+    userContext.vars.message = message;
+    return done();
+  }
+
+  function validateResponse(message, userContext, events) {
+    try {
+      const response = message.toString();
+      if (response.includes('Echo: Test message')) {
+        events.emit('counter', 'message.echoed', 1);
+      } else {
+        events.emit('counter', 'message.invalid', 1);
+      }
+    } catch (error) {
+      events.emit('counter', 'message.error', 1);
+    }
+  }

@@ -1,0 +1,14 @@
+[Unit]
+Description=Salahor WebSocket Server
+After=network.target
+
+[Service]
+User=node
+WorkingDirectory=/opt/salahor/current
+ExecStart=/usr/bin/node /opt/salahor/current/server.js
+Restart=always
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
