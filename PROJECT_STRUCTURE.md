@@ -56,10 +56,21 @@ core/
 protocol-connectors/
 ├── websocket/            # WebSocket connector
 │   ├── src/
-│   │   ├── client.ts    # WebSocket client
-│   │   ├── server.ts    # WebSocket server
-│   │   └── types.ts     # Type definitions
-│   ├── tests/           # Tests
+│   │   ├── client/      # WebSocket client implementation
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
+│   │   ├── server/      # WebSocket server implementation
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
+│   │   ├── utils/       # Shared utilities
+│   │   │   ├── logger.ts
+│   │   │   └── errors.ts
+│   │   └── index.ts     # Main entry point
+│   ├── test/            # Tests
+│   │   ├── unit/       # Unit tests
+│   │   ├── e2e/        # End-to-end tests
+│   │   ├── integration/# Integration tests
+│   │   └── utils/      # Test utilities
 │   ├── package.json
 │   └── tsconfig.json
 └── sse/                  # Server-Sent Events connector

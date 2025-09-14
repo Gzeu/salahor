@@ -1,4 +1,4 @@
-import { createEventStream } from '@salahor/core';
+import { createEventStream, EventStream } from '@salahor/core';
 import type { WebSocketClient, WebSocketClientOptions } from './types';
 import { devLogger, isDev, fileExists } from './utils';
 
@@ -12,6 +12,25 @@ class ConnectionError extends Error {
   }
 }
 
+type WebSocketType = {
+  new (url: string, protocols?: string | string[], options?: any): WebSocket;
+  CONNECTING: number;
+  OPEN: number;
+  CLOSING: number;
+  CLOSED: number;
+};
+
+function getDefaultWebSocket(): WebSocketType {
+  if (typeof WebSocket !== 'undefined') {
+    return WebSocket as unknown as WebSocketType;
+  }
+  try {
+    return require('ws');
+  } catch (e) {
+    throw new Error('No WebSocket implementation found');
+  }
+}
+
 export function createWebSocketClient(
   url: string,
   options: WebSocketClientOptions = {}
@@ -21,53 +40,78 @@ export function createWebSocketClient(
     maxReconnectAttempts = Infinity,
     WebSocket: WebSocketImpl = getDefaultWebSocket(),
     wsOptions = {},
+    protocols = [],
+    debug = false,
   } = options;
 
   let socket: WebSocket | null = null;
   let reconnectAttempts = 0;
   let reconnectTimeout: NodeJS.Timeout | null = null;
   let isExplicitlyClosed = false;
+  const messageQueue: Array<string | ArrayBuffer | ArrayBufferView> = [];
 
   // Create event streams
-  const messages = createEventStream<string | ArrayBuffer | Blob>();
+  const messageStream = createEventStream<MessageEvent>();
   const openEvents = createEventStream<Event>();
   const closeEvents = createEventStream<CloseEvent>();
   const errorEvents = createEventStream<Event>();
 
-  const checkRequiredFiles = async (): Promise<void> => {
-    // Skip file checks in development if explicitly disabled
-    const skipFileChecks = isDev && process.env.SKIP_FILE_CHECKS === 'true';
-    
-    if (skipFileChecks) {
-      devLogger.log('Skipping file existence checks in development (SKIP_FILE_CHECKS=true)');
-      return;
+  const log = debug ? console.log : () => {};
+
+  const cleanupSocket = (): void => {
+    if (!socket) return;
+
+    socket.onopen = null;
+    socket.onclose = null;
+    socket.onerror = null;
+    socket.onmessage = null;
+
+    if (socket.readyState === WebSocketImpl.OPEN) {
+      socket.close(1000, 'Client closed');
     }
+    socket = null;
+  };
 
-    // Check if we have any certificate or key files in the options
-    const certFiles = [
-      wsOptions.cert,
-      wsOptions.key,
-      wsOptions.ca,
-      // Check for any additional files that might be needed
-      ...(wsOptions as any).pfx ? [(wsOptions as any).pfx] : [],
-      ...(wsOptions as any).passphrase ? [] : [], // Skip passphrase as it's not a file
-    ].filter(Boolean);
+  const setupSocket = (): void => {
+    if (!socket) return;
 
-    for (const file of certFiles) {
-      if (file && typeof file === 'string') {
-        const exists = await fileExists(file);
-        if (!exists) {
-          const errorMsg = `Required file not found: ${file}`;
-          if (isDev) {
-          devLogger.warn(errorMsg);
-          devLogger.log('To skip file checks in development, set SKIP_FILE_CHECKS=true');
-        }
-          throw new ConnectionError(errorMsg, 'ENOENT');
-        } else if (isDev) {
-          devLogger.debug(`Verified file exists: ${file}`);
+    socket.onopen = (event: Event) => {
+      reconnectAttempts = 0;
+      log('WebSocket connection established');
+      openEvents.emit(event);
+      
+      // Process any queued messages
+      while (messageQueue.length > 0) {
+        const message = messageQueue.shift();
+        if (message) {
+          socket.send(message);
         }
       }
-    }
+    };
+
+    socket.onclose = (event: CloseEvent) => {
+      log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+      closeEvents.emit(event);
+      
+      if (!isExplicitlyClosed && reconnectAttempts < maxReconnectAttempts) {
+        const delay = Math.min(reconnectDelay * Math.pow(1.5, reconnectAttempts), 30000);
+        log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+        
+        reconnectTimeout = setTimeout(() => {
+          reconnectAttempts++;
+          connect().catch(console.error);
+        }, delay);
+      }
+    };
+
+    socket.onerror = (event: Event) => {
+      log('WebSocket error:', event);
+      errorEvents.emit(event);
+    };
+
+    socket.onmessage = (event: MessageEvent) => {
+      messageStream.emit(event);
+    };
   };
 
   const connect = async (): Promise<void> => {
@@ -76,27 +120,31 @@ export function createWebSocketClient(
     }
 
     try {
-      // Check for required files before attempting to connect
-      await checkRequiredFiles();
-      
-      // If we get here, all files exist, proceed with connection
       if (isDev) {
-        devLogger.log(`Connecting to WebSocket: ${url}`);
+        await checkRequiredFiles(wsOptions);
       }
       
-      socket = new WebSocketImpl(url, [], wsOptions);
+      log(`Connecting to WebSocket: ${url}`);
+      socket = new WebSocketImpl(url, protocols, wsOptions);
       setupSocket();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorCode = error instanceof ConnectionError ? error.code : 'ECONNFAILED';
       
       const errorMsg = `Failed to create WebSocket (${errorCode}): ${errorMessage}`;
+      log(errorMsg, error instanceof Error ? error : undefined);
       
-      if (isDev) {
-        devLogger.error(errorMsg, error instanceof Error ? error : undefined);
-      } else {
-        console.error(errorMsg);
+      // Schedule reconnection if needed
+      if (reconnectAttempts < maxReconnectAttempts) {
+        const delay = Math.min(reconnectDelay * Math.pow(1.5, reconnectAttempts), 30000);
+        reconnectTimeout = setTimeout(() => {
+          reconnectAttempts++;
+          connect().catch(console.error);
+        }, delay);
       }
+      
+      throw error;
+    }
       
       // Emit error event
       errorEvents.emit(new ErrorEvent('error', {

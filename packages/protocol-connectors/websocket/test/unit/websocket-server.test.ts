@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { createServer, Server } from 'http';
 import { WebSocket } from 'ws';
-import { createWebSocketServer } from '../src/server';
-import type { WebSocketServer, WebSocketConnection } from '../src/types';
+import { createWebSocketServer } from '../../src/server';
+import type { WebSocketServer, WebSocketConnection } from '../../src/types';
 
 // Increase test timeout for CI environments
 const TEST_TIMEOUT = process.env.CI ? 30000 : 10000;
