@@ -11,13 +11,13 @@ declare const jest: { isMockFunction: (fn: any) => boolean } | undefined;
  */
 export function isDevelopment(): boolean {
   return (
-    process.env.NODE_ENV === 'development' || 
+    process.env.NODE_ENV === 'development' ||
     process.env.NODE_ENV === 'dev' ||
     process.env.NODE_ENV === 'test' ||
     (typeof __DEV__ !== 'undefined' && __DEV__) ||
-    (typeof process !== 'undefined' && 
-     typeof process.execPath === 'string' && 
-     process.execPath.includes('node_modules/.bin/jest'))
+    (typeof process !== 'undefined' &&
+      typeof process.execPath === 'string' &&
+      process.execPath.includes('node_modules/.bin/jest'))
   );
 }
 
@@ -26,7 +26,9 @@ export function isDevelopment(): boolean {
  * @returns boolean indicating if in production
  */
 export function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'prod';
+  return (
+    process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'prod'
+  );
 }
 
 let _isTestEnvironment: boolean | null = null;
@@ -42,20 +44,19 @@ export function isTest(): boolean {
   }
 
   // Check if we're running in a test environment
-  _isTestEnvironment = (
+  _isTestEnvironment =
     // Check for test runner environment variables
     process.env.VITEST_WORKER_ID !== undefined ||
     process.env.JEST_WORKER_ID !== undefined ||
     // Check NODE_ENV
     process.env.NODE_ENV === 'test' ||
     // Check if we're running in a test file
-    (typeof process !== 'undefined' && 
-     typeof process.execPath === 'string' && 
-     (process.execPath.includes('node_modules/.bin/jest') ||
-      process.execPath.includes('node_modules/.bin/vitest') ||
-      process.execPath.includes('node_modules/jest/') ||
-      process.execPath.includes('node_modules/vitest/')))
-  );
+    (typeof process !== 'undefined' &&
+      typeof process.execPath === 'string' &&
+      (process.execPath.includes('node_modules/.bin/jest') ||
+        process.execPath.includes('node_modules/.bin/vitest') ||
+        process.execPath.includes('node_modules/jest/') ||
+        process.execPath.includes('node_modules/vitest/')));
 
   return _isTestEnvironment;
 }
@@ -87,5 +88,5 @@ export const devLogger = {
     if (!isProduction() || process.env.DEBUG) {
       console.debug('[DEBUG]', ...args);
     }
-  }
+  },
 };
