@@ -1,0 +1,328 @@
+name: Modern CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22.x'
+  PNPM_VERSION: '9'
+  FORCE_COLOR: 3
+  CI: true
+
+# Security: Restrict permissions
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+  pull-requests: write
+  checks: write
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: |
+          # Retry logic for network issues
+          for i in {1..3}; do
+            if pnpm install --frozen-lockfile --prefer-offline; then
+              break
+            elif [ $i -eq 3 ]; then
+              echo "Failed to install after 3 attempts, trying without frozen lockfile..."
+              pnpm install --no-frozen-lockfile
+            else
+              echo "Attempt $i failed, retrying..."
+              sleep 2
+            fi
+          done
+
+      - name: Security Audit
+        run: |
+          echo "🔒 Running security audit..."
+          pnpm audit --audit-level moderate --json > audit-results.json || true
+          
+          # Check for high/critical vulnerabilities
+          if pnpm audit --audit-level high --json | grep -q '"vulnerabilities"'; then
+            echo "❌ High/critical vulnerabilities found!"
+            pnpm audit --audit-level high
+            exit 1
+          else
+            echo "✅ No high/critical vulnerabilities found"
+          fi
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-results
+          path: audit-results.json
+
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    needs: [security-audit]
+    strategy:
+      matrix:
+        check: [lint, typecheck, format-check]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline || pnpm install --no-frozen-lockfile
+
+      - name: Run ${{ matrix.check }}
+        run: |
+          case "${{ matrix.check }}" in
+            "lint")
+              echo "🔍 Running ESLint with security rules..."
+              pnpm lint --format=@eslint/eslint-formatter-github
+              ;;
+            "typecheck")
+              echo "📝 Running TypeScript type checking..."
+              pnpm typecheck
+              ;;
+            "format-check")
+              echo "🎨 Checking code formatting..."
+              pnpm run format --check || {
+                echo "❌ Code formatting issues found. Run 'pnpm format' to fix."
+                exit 1
+              }
+              ;;
+          esac
+
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: [security-audit]
+    strategy:
+      matrix:
+        node-version: ['20.x', '22.x']
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline || pnpm install --no-frozen-lockfile
+
+      - name: Build packages
+        run: |
+          echo "🏗️ Building packages..."
+          pnpm build:production
+          
+          # Verify build artifacts
+          echo "✅ Verifying build artifacts..."
+          find . -name "dist" -type d | while read -r dist_dir; do
+            if [ -z "$(ls -A "$dist_dir")" ]; then
+              echo "❌ Empty dist directory: $dist_dir"
+              exit 1
+            fi
+          done
+
+      - name: Run tests
+        run: |
+          echo "🧪 Running test suite..."
+          pnpm test --run --coverage --reporter=verbose
+
+      - name: Performance benchmarks
+        if: matrix.node-version == '22.x' && matrix.os == 'ubuntu-latest'
+        run: |
+          echo "⚡ Running performance benchmarks..."
+          pnpm benchmark || echo "⚠️ Benchmarks not available or failed"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.node-version }}-${{ matrix.os }}
+          path: |
+            coverage/
+            test-results.xml
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  bundle-analysis:
+    name: Bundle Analysis
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline || pnpm install --no-frozen-lockfile
+
+      - name: Build for analysis
+        run: pnpm build:production
+
+      - name: Analyze bundle sizes
+        run: |
+          echo "📦 Analyzing bundle sizes..."
+          # Bundle size analysis
+          find packages -name "dist" -type d | while read -r dist_dir; do
+            package_name=$(dirname "$dist_dir" | xargs basename)
+            size=$(du -sb "$dist_dir" | cut -f1)
+            size_kb=$((size / 1024))
+            echo "📦 $package_name: ${size_kb}KB"
+            
+            # Warn if bundle is too large (>500KB)
+            if [ $size_kb -gt 500 ]; then
+              echo "⚠️ Warning: $package_name bundle size is ${size_kb}KB (>500KB)"
+            fi
+          done
+
+  deployment-check:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [quality-checks, build-and-test, security-scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline || pnpm install --no-frozen-lockfile
+
+      - name: Build for production
+        run: pnpm build:production
+
+      - name: Validate package integrity
+        run: |
+          echo "🔍 Validating package integrity..."
+          pnpm -r exec npm pack --dry-run
+          
+          # Check for missing files in packages
+          find packages -name "package.json" | while read -r pkg_json; do
+            pkg_dir=$(dirname "$pkg_json")
+            if [ ! -d "$pkg_dir/dist" ]; then
+              echo "❌ Missing dist directory in $pkg_dir"
+              exit 1
+            fi
+          done
+          
+          echo "✅ All packages validated successfully"
+
+      - name: Generate build summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Size | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          find packages -name "dist" -type d | while read -r dist_dir; do
+            package_name=$(dirname "$dist_dir" | xargs basename)
+            size=$(du -sh "$dist_dir" | cut -f1)
+            echo "| $package_name | $size | ✅ Ready |" >> $GITHUB_STEP_SUMMARY
+          done
