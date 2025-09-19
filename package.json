@@ -13,6 +13,7 @@
   "scripts": {
     "prepare": "pnpm -r run prepare",
     "test": "pnpm -r test",
+    "test:coverage": "pnpm -r test --coverage",
     "build": "pnpm -r build",
     "clean": "pnpm -r clean",
     "clean:all": "node scripts/clean.js",
