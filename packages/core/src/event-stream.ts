@@ -28,13 +28,12 @@ export class EventStreamImpl<T> implements EventStream<T> {
     }
 
     this.listeners.add(listener);
-
     return () => {
       this.listeners.delete(listener);
     };
   }
 
-  private isPromise(value: any): value is Promise<unknown> {
+  private isPromise(value: unknown): value is Promise<unknown> {
     return value && typeof value === 'object' && 'then' in value && typeof value.then === 'function';
   }
 
@@ -91,7 +90,7 @@ export class EventStreamImpl<T> implements EventStream<T> {
       try {
         if (typeof listener === 'function') {
           // Call function listeners with undefined to indicate completion
-          listener(undefined as any);
+          listener(undefined as T);
         } else if (listener.complete) {
           // Call complete method for subscriber objects
           listener.complete();
@@ -102,15 +101,15 @@ export class EventStreamImpl<T> implements EventStream<T> {
     }
   }
 
-  pipe<U = T>(...operators: Operator<any, any>[]): EventStream<U> {
+  pipe<U>(...operators: Operator<unknown, unknown>[]): EventStream<U> {
     return operators.reduce(
       (source, operator) => operator(source),
-      this as unknown as EventStream<any>
+      this as unknown as EventStream<unknown>
     ) as EventStream<U>;
   }
 }
 
-export function createEventStream<T = any>(): EventStream<T> {
+export function createEventStream<T>(): EventStream<T> {
   return new EventStreamImpl<T>();
 }
 
@@ -139,7 +138,7 @@ export function fromAsyncIterable<T>(
 }
 
 // Helper function to create a stream from an event emitter
-export function fromEventEmitter<T = any>(
+export function fromEventEmitter<T>(
   emitter: NodeJS.EventEmitter,
   eventName: string | symbol
 ): EventStream<T> {
