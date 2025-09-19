@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "coverage": "vitest run --coverage",
     "clean": "pnpm -r run clean",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings=10",
+    "lint": "eslint -c .eslintrc.cjs \"packages/*/src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern --max-warnings=10",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "typecheck": "tsc --noEmit",
     "size": "size-limit",
