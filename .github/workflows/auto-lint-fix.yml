@@ -1,0 +1,56 @@
+name: Auto-fix Lint Errors
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  auto-fix:
+    name: Auto-fix lint errors
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: |
+          if pnpm install --frozen-lockfile; then
+            echo "✅ Installed with frozen lockfile"
+          else
+            echo "⚠️ Frozen lockfile failed, installing without it..."
+            pnpm install --no-frozen-lockfile
+          fi
+          
+      - name: Run lint:fix
+        run: |
+          echo "🔧 Running pnpm run lint:fix..."
+          pnpm run lint:fix || echo "✅ lint:fix completed with some remaining issues"
+          
+      - name: Run format
+        run: |
+          echo "🎨 Running pnpm format..."
+          pnpm format
+          
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: auto-fix lint errors with lint:fix'
+          branch: main
