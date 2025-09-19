@@ -1,0 +1,82 @@
+name: Auto-fix Code Style
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_message:
+        description: 'Commit message for auto-fixes'
+        required: false
+        default: 'style: auto-fix ESLint and Prettier issues'
+
+permissions:
+  contents: write
+
+jobs:
+  auto-fix:
+    name: Auto-fix ESLint and Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: |
+          if pnpm install --frozen-lockfile; then
+            echo "✅ Installed with frozen lockfile"
+          else
+            echo "⚠️ Frozen lockfile failed, installing without it..."
+            pnpm install --no-frozen-lockfile
+          fi
+
+      - name: Run Prettier formatting
+        run: |
+          echo "🎨 Running Prettier..."
+          pnpm run format
+          echo "✅ Prettier formatting completed"
+
+      - name: Run ESLint auto-fix
+        run: |
+          echo "🔧 Running ESLint auto-fix..."
+          pnpm run lint:fix || echo "✅ ESLint auto-fix completed with some remaining issues"
+          echo "✅ ESLint auto-fix completed"
+
+      - name: Check for changes
+        id: verify-changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "📝 Changes detected after formatting"
+            git status --short
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "✅ No changes needed"
+          fi
+
+      - name: Commit and push changes
+        if: steps.verify-changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "96602369+Gzeu@users.noreply.github.com"
+          git config --local user.name "George Pricop"
+          git add .
+          git commit -m "${{ github.event.inputs.commit_message || 'style: auto-fix ESLint and Prettier issues' }}"
+          git push
+          echo "✅ Changes committed and pushed"
+
+      - name: Final lint check
+        run: |
+          echo "🔍 Running final lint check..."
+          pnpm run lint || echo "ℹ️ Some linting issues may remain - check output above"
+          echo "🎉 Auto-fix workflow completed!"
