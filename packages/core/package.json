@@ -1,7 +1,7 @@
 {
   "name": "@salahor/core",
-  "version": "3.0.0",
-  "description": "Core utilities and types for Salahor ecosystem - Zero-dependency universal connectors between Events, EventTargets and AsyncIterables",
+  "version": "3.1.0",
+  "description": "Zero-dependency universal connectors between Events, EventTargets and AsyncIterables. High-performance reactive streams for modern applications.",
   "keywords": [
     "events",
     "async-iterable",
@@ -11,13 +11,26 @@
     "salahor",
     "core",
     "typescript",
-    "esm"
+    "esm",
+    "zero-dependency",
+    "performance",
+    "event-stream",
+    "async-iterator",
+    "event-target",
+    "browser",
+    "nodejs",
+    "universal"
   ],
-  "author": "Your Name <your.email@example.com> (https://github.com/yourusername)",
+  "author": {
+    "name": "Gzeu",
+    "email": "pricopgeorge@gmail.com",
+    "url": "https://github.com/Gzeu"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Gzeu/salahor.git"
+    "url": "git+https://github.com/Gzeu/salahor.git",
+    "directory": "packages/core"
   },
   "homepage": "https://github.com/Gzeu/salahor/tree/main/packages/core#readme",
   "bugs": {
@@ -39,10 +52,13 @@
     "./event-stream": {
       "types": "./dist/event-stream.d.ts",
       "import": "./dist/event-stream.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist/**/*",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "engines": {
@@ -50,52 +66,38 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {},
   "devDependencies": {
-    "@types/node": "^20.5.7",
-    "typescript": "^5.1.6",
-    "rimraf": "^5.0.1",
-    "vitest": "^0.34.3",
-    "@vitest/coverage-v8": "^0.34.3",
-    "@vitest/ui": "^0.34.3",
-    "@vitest/coverage-istanbul": "^0.34.3",
-    "@types/jest": "^29.5.2",
-    "happy-dom": "^9.20.3",
-    "jsdom": "^22.1.0",
-    "eslint": "^8.47.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-import": "^2.28.1",
-    "eslint-plugin-prettier": "^5.0.0",
-    "eslint-plugin-vitest": "^0.3.8",
-    "@typescript-eslint/eslint-plugin": "^6.4.0",
-    "@typescript-eslint/parser": "^6.4.0",
-    "prettier": "^3.0.2",
-    "eslint-plugin-jsdoc": "^46.5.1",
-    "eslint-plugin-tsdoc": "^0.2.17",
-    "typedoc": "^0.25.2",
-    "typedoc-plugin-markdown": "^3.15.4",
-    "typedoc-plugin-no-inherit": "^1.4.0",
-    "typedoc-plugin-missing-exports": "^2.0.0",
-    "@microsoft/api-extractor": "^7.37.1"
+    "@types/node": "^20.17.6",
+    "typescript": "^5.6.3",
+    "rimraf": "^5.0.10",
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "prettier": "^3.3.3"
   },
   "scripts": {
     "prebuild": "pnpm run clean",
     "build": "tsc -p tsconfig.build.json",
-    "build:watch": "tsc --outDir dist --rootDir src --declaration --declarationMap --sourceMap --module esnext --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck --forceConsistentCasingInFileNames --watch",
+    "build:watch": "tsc -p tsconfig.build.json --watch",
     "clean": "rimraf dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ci": "vitest run --coverage --run --coverage.reporters=text",
-    "test:update": "vitest -u",
+    "test:ci": "vitest run --coverage --reporter=verbose",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm run build",
-    "preversion": "pnpm test",
-    "version": "pnpm run format && git add -A src"
+    "prepublishOnly": "pnpm run build && pnpm run test",
+    "preversion": "pnpm run test && pnpm run lint",
+    "dev": "tsc -p tsconfig.build.json --watch"
   }
 }
