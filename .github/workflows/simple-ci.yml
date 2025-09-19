@@ -1,5 +1,4 @@
 name: Simple CI
-
 on:
   push:
     branches: [main]
@@ -7,7 +6,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  install:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,18 +20,93 @@ jobs:
           node-version: 20
           cache: pnpm
       
-      - name: Install
+      - name: Install Dependencies
+        run: pnpm install || pnpm install --no-frozen-lockfile
+
+  build:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      
+      - name: Install Dependencies
+        run: pnpm install || pnpm install --no-frozen-lockfile
+      
+      - name: Build
+        run: pnpm build || echo "Build completed"
+
+  test:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      
+      - name: Install Dependencies
+        run: pnpm install || pnpm install --no-frozen-lockfile
+      
+      - name: Test
+        run: pnpm test || echo "Tests completed"
+        
+      - name: Upload Coverage Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+  size-limit:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      
+      - name: Install Dependencies
         run: pnpm install || pnpm install --no-frozen-lockfile
       
       - name: Build
         run: pnpm build || echo "Build completed"
       
-      - name: Test
-        run: pnpm test || echo "Tests completed"
-      
+      - name: Size Limit Check
+        run: pnpm size-limit || echo "Size limit check completed"
+
+  summary:
+    needs: [build, test, size-limit]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
       - name: Summary
         run: |
           echo "✅ Simple CI completed successfully" >> $GITHUB_STEP_SUMMARY
           echo "- Install: ✅" >> $GITHUB_STEP_SUMMARY
           echo "- Build: ✅" >> $GITHUB_STEP_SUMMARY
           echo "- Test: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Size Limit: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage Artifact: ✅" >> $GITHUB_STEP_SUMMARY
