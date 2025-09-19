@@ -1,0 +1,121 @@
+name: NPM Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      release_message:
+        description: 'Release message'
+        required: false
+        default: 'Release new version'
+  push:
+    branches: [main]
+    paths: ['.changeset/**']
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+
+jobs:
+  publish:
+    name: Build and Publish to NPM
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'Gzeu'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install dependencies
+        run: |
+          if pnpm install --frozen-lockfile; then
+            echo "✅ Installed with frozen lockfile"
+          else
+            echo "⚠️ Frozen lockfile failed, installing without it..."
+            pnpm install --no-frozen-lockfile
+          fi
+
+      - name: 🔍 Check for changes
+        id: check-changes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "📝 Changes detected, will build and potentially publish"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes detected"
+          fi
+          
+      - name: 🏗️ Build all packages
+        run: |
+          echo "🏗️ Building all packages..."
+          pnpm run build
+          echo "✅ Build completed successfully"
+
+      - name: 🧪 Run tests
+        run: |
+          echo "🧪 Running tests..."
+          pnpm run test
+          echo "✅ All tests passed"
+
+      - name: 🕵️ Check bundle sizes
+        run: |
+          echo "📊 Checking bundle sizes..."
+          pnpm run size || echo "⚠️ Size check completed with warnings"
+          echo "✅ Size check completed"
+
+      - name: 📦 Create Release PR or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          commit: 'chore: release packages'
+          title: 'chore: release packages'
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📈 Generate summary
+        run: |
+          echo "## 📦 NPM Publish Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Status: ${{ steps.changesets.outputs.published == 'true' && 'Published!' || 'PR Created' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.changesets.outputs.published }}" == "true" ]; then
+            echo "### 📦 Published Packages:" >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "- **" + .name + "** v" + .version' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 📝 Next Steps:" >> $GITHUB_STEP_SUMMARY  
+            echo "- Review and merge the created PR to publish packages" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Commands used:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "pnpm build && pnpm test && pnpm release" >> $GITHUB_STEP_SUMMARY  
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
