@@ -21,7 +21,11 @@
     "size": "size-limit",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "prepare-release": "pnpm build && pnpm test && pnpm lint",
+    "publish-all": "pnpm prepare-release && pnpm changeset publish",
+    "dev": "pnpm -r --filter './packages/*' run dev",
+    "preview-release": "pnpm changeset status"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -33,9 +37,21 @@
     "streams",
     "reactive",
     "typescript",
-    "zero-dependency"
+    "zero-dependency",
+    "event-stream",
+    "async-iterator",
+    "event-target",
+    "performance",
+    "browser",
+    "nodejs",
+    "universal",
+    "connector"
   ],
-  "author": "Gzeu",
+  "author": {
+    "name": "Gzeu",
+    "email": "pricopgeorge@gmail.com",
+    "url": "https://github.com/Gzeu"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
