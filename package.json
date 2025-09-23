@@ -1,54 +1,90 @@
 {
-  "name": "salahor-monorepo",
+  "name": "salahor",
   "version": "1.0.0",
-  "private": true,
-  "description": "Zero-dependency universal connectors between Events, EventTargets and AsyncIterables",
+  "description": "High-performance, zero-dependency library for universal connectors between Events, EventTargets, and AsyncIterables. TypeScript-first with modern CI/CD.",
   "type": "module",
-  "workspaces": [
-    "packages/*"
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.esm.js",
+      "require": "./dist/core/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "pnpm -r --filter './packages/*' run build",
+    "build": "pnpm -r --filter './packages/*' run build && pnpm run bundle",
+    "bundle": "rollup -c rollup.config.js",
     "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "coverage": "vitest run --coverage",
-    "clean": "pnpm -r run clean",
-    "lint": "eslint -c .eslintrc.cjs \"packages/*/src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern --max-warnings=50",
+    "clean": "pnpm -r run clean && rimraf dist",
+    "lint": "eslint -c .eslintrc.cjs \"packages/*/src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern --max-warnings=0",
     "lint:fix": "eslint -c .eslintrc.cjs \"packages/*/src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "fix-all": "pnpm run format && pnpm run lint:fix",
     "typecheck": "tsc --noEmit",
     "size": "size-limit",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "changeset publish",
-    "prepare-release": "pnpm build && pnpm test && pnpm lint",
-    "publish-all": "pnpm prepare-release && pnpm changeset publish",
+    "release": "pnpm run build && pnpm run test && pnpm run lint && changeset publish",
+    "prepare-release": "pnpm run clean && pnpm run build && pnpm run test && pnpm run lint && pnpm run size",
+    "publish-npm": "pnpm run prepare-release && npm publish --access public",
     "dev": "pnpm -r --filter './packages/*' run dev",
-    "preview-release": "pnpm changeset status"
+    "preview-release": "pnpm changeset status",
+    "docs:build": "typedoc --out docs src/index.ts",
+    "docs:serve": "serve docs",
+    "security-audit": "npm audit --audit-level moderate",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run size"
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "pnpm": ">=8.0.0",
+    "npm": ">=9.0.0"
   },
   "keywords": [
-    "events",
-    "async-iterable",
-    "streams",
-    "reactive",
     "typescript",
+    "async-iterable",
+    "events",
+    "reactive",
     "zero-dependency",
+    "streams",
+    "nodejs",
+    "browser",
+    "performance",
+    "universal-connector",
     "event-stream",
     "async-iterator",
     "event-target",
-    "performance",
-    "browser",
-    "nodejs",
-    "universal",
-    "connector"
+    "cross-platform",
+    "high-performance",
+    "observable",
+    "rxjs-alternative",
+    "reactive-programming",
+    "async-streams",
+    "event-emitter",
+    "dom-events",
+    "promise-streams",
+    "interval-streams",
+    "web-streams",
+    "node-streams"
   ],
   "author": {
-    "name": "Gzeu",
+    "name": "George Pricop",
     "email": "pricopgeorge@gmail.com",
     "url": "https://github.com/Gzeu"
   },
@@ -58,23 +94,54 @@
     "url": "git+https://github.com/Gzeu/salahor.git"
   },
   "bugs": {
-    "url": "https://github.com/Gzeu/salahor/issues"
+    "url": "https://github.com/Gzeu/salahor/issues",
+    "email": "pricopgeorge@gmail.com"
   },
   "homepage": "https://github.com/Gzeu/salahor#readme",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/Gzeu"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "@changesets/cli": "^2.27.9",
     "@types/node": "^20.17.6",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^1.6.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "prettier": "^3.3.3",
-    "typescript": "^5.6.3",
-    "vitest": "^1.6.0",
-    "@vitest/coverage-v8": "^1.6.0",
     "rimraf": "^5.0.10",
+    "rollup": "^4.21.3",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "serve": "^14.2.3",
     "size-limit": "^11.1.4",
-    "@size-limit/file": "^11.1.4"
-  }
+    "@size-limit/file": "^11.1.4",
+    "typedoc": "^0.26.7",
+    "typescript": "^5.6.3",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "sideEffects": false
 }
